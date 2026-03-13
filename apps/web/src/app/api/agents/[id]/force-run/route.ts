@@ -9,17 +9,9 @@ import {
   agentLogPath,
 } from "@/lib/paths";
 
-const SAFE_ID_RE = /^[a-z][a-z0-9-]{0,63}$/;
+import { CronJob } from "@/lib/cron-types";
 
-interface CronJob {
-  id: string;
-  interval: string;
-  prompt: string;
-  contexts: string[];
-  agentic: boolean;
-  workspace: boolean;
-  repo?: string;
-}
+const SAFE_ID_RE = /^[a-z][a-z0-9-]{0,63}$/;
 
 export async function POST(
   _request: NextRequest,

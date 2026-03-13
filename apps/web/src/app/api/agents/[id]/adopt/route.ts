@@ -7,31 +7,9 @@ import {
   templatePath,
 } from "@/lib/paths";
 
+import { CronJob, CronJobsData, CronState } from "@/lib/cron-types";
+
 const SAFE_ID_RE = /^[a-z][a-z0-9-]{0,63}$/;
-
-interface CronJob {
-  id: string;
-  interval: string;
-  prompt: string;
-  contexts: string[];
-  agentic: boolean;
-  workspace: boolean;
-}
-
-interface CronJobsData {
-  jobs: CronJob[];
-  [key: string]: unknown;
-}
-
-interface CronState {
-  jobs: Record<
-    string,
-    {
-      interval?: string;
-      contexts?: string[];
-    }
-  >;
-}
 
 function inferTemplateType(id: string): string {
   if (id.startsWith("planner")) return "planner";

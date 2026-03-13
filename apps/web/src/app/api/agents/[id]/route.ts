@@ -1,17 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import { atomicWriteJsonSync, cronJobsPath } from "@/lib/paths";
+import { CronJob, CronJobsData } from "@/lib/cron-types";
 
 const SAFE_ID_RE = /^[a-z][a-z0-9-]{0,63}$/;
-
-interface CronJob {
-  id: string;
-}
-
-interface CronJobsData {
-  jobs: CronJob[];
-  [key: string]: unknown;
-}
 
 export async function DELETE(
   _request: NextRequest,

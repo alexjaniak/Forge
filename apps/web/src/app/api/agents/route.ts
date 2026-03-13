@@ -9,30 +9,7 @@ import {
   lockFilePath,
   templatePath,
 } from "@/lib/paths";
-
-interface CronJob {
-  id: string;
-  interval: string;
-  prompt: string;
-  contexts: string[];
-  agentic: boolean;
-  workspace: boolean;
-  enabled?: boolean;
-  repo?: string;
-}
-
-interface CronState {
-  jobs: Record<
-    string,
-    {
-      interval?: string;
-      last_run?: string;
-      stagger_offset?: number;
-      installed_at?: string;
-      contexts?: string[];
-    }
-  >;
-}
+import { CronJob, CronState } from "@/lib/cron-types";
 
 function parseIntervalSeconds(interval: string): number {
   const match = interval.match(/^(\d+)(s|m|h)$/);
