@@ -5,6 +5,7 @@ from forge_cli.clear_cmd import clear_cmd
 from forge_cli.cron import cron
 from forge_cli.list_cmd import list_cmd
 from forge_cli.logs import logs
+from forge_cli.unorphan_cmd import unorphan_cmd
 from forge_cli.webhook import wh
 
 
@@ -20,4 +21,5 @@ main.add_command(cron)
 main.add_command(list_cmd, name="list")
 main.add_command(list_cmd, name="status")
 main.add_command(logs)
+main.add_command(unorphan_cmd, name="unorphan")
 main.add_command(wh)
