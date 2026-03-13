@@ -5,7 +5,7 @@ import re
 
 import click
 
-from forge_cli.cron import _get_manage
+from forge_cli.paths import _get_manage
 
 
 def _role_from_id(agent_id):
