@@ -33,6 +33,7 @@ forge remove <id>             # remove an agent
 forge cron apply              # sync crontab
 forge cron status --watch     # live agent timing
 forge logs -f                 # follow all logs
+forge unorphan <id>            # restore orphaned agent to config
 forge wh                      # start webhook monitor
 ```
 
