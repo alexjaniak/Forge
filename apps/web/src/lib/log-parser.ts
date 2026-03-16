@@ -12,9 +12,9 @@ export interface LogBlock {
   skipReason?: string;
 }
 
-const RUN_MARKER = /^=== RUN (\S+) \| duration=(\d+)s \| exit=(\d+) ===$/;
+const RUN_MARKER = /^=== RUN (\S+) duration=(\d+)s exit=(\d+) ===$/;
 const END_MARKER = /^=== END RUN(?:\s+(\S+))? ===$/;
-const SKIP_MARKER = /^=== SKIP (\S+) \| reason=(.+) ===$/;
+const SKIP_MARKER = /^=== SKIP (\S+) reason=(.+) ===$/;
 
 function formatTime(isoTimestamp: string): string {
   try {
