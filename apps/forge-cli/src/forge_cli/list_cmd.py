@@ -5,7 +5,7 @@ import re
 
 import click
 
-from forge_cli.cron import _get_manage
+from forge_cli.paths import _get_manage
 
 
 def _role_from_id(agent_id):
@@ -71,7 +71,7 @@ def list_cmd():
                 f"  {click.style('+', fg='green')} "
                 f"{click.style(agent_id, fg='green'):<28} "
                 f"{role:<10} {interval:<6}"
-                f"{click.style('(new — run `forge cron apply` to activate)', dim=True)}"
+                f"{click.style('(new — run `forge apply` to activate)', dim=True)}"
             )
         for agent_id in sorted(removed_ids):
             info = active_jobs[agent_id]
@@ -81,7 +81,7 @@ def list_cmd():
                 f"  {click.style('-', fg='red')} "
                 f"{click.style(agent_id, fg='red'):<28} "
                 f"{role:<10} {interval:<6}"
-                f"{click.style('(removed — run `forge cron apply` to activate)', dim=True)}"
+                f"{click.style('(removed — run `forge apply` to activate)', dim=True)}"
             )
         for agent_id in sorted(changed_ids):
             old_interval = active_jobs[agent_id].get("interval", "?")
@@ -134,7 +134,7 @@ def list_cmd():
     elif not active_jobs:
         click.echo(click.style("Active:", bold=True))
         click.echo(
-            click.style("  No active agents (run `forge cron apply` first)", dim=True)
+            click.style("  No active agents (run `forge apply` first)", dim=True)
         )
         click.echo()
 

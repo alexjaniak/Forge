@@ -109,7 +109,7 @@ def add(agent_type, agent_id, interval, list_templates):
     click.echo(f"  agentic:   {'yes' if job['agentic'] else 'no'}")
     click.echo(f"  workspace: {'yes' if job['workspace'] else 'no'}")
     click.echo()
-    click.echo("Run `forge cron apply` to activate.")
+    click.echo("Run `forge apply` to activate.")
 
 
 @click.command()
@@ -136,4 +136,4 @@ def remove(agent_id):
         fg="red",
     ))
     click.echo()
-    click.echo("Run `forge cron apply` to deactivate.")
+    click.echo("Run `forge apply` to deactivate.")

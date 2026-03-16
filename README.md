@@ -21,11 +21,14 @@ Unified command-line interface for managing agents.
 |---------|-------------|
 | `forge add <role>` | Add an agent from a template (worker, planner, super) |
 | `forge remove <id>` | Remove an agent |
-| `forge clear` | Reset all staged agents |
+| `forge apply` | Sync staged agent config to live crontab |
+| `forge run <id>` | Run an agent once immediately |
+| `forge clear` | Clear active crontab and state |
+| `forge clear --staged` | Clear only staged config |
 | `forge list` | Show all agents (staged, active, unstaged) |
 | `forge status` | Alias for `forge list` |
-| `forge cron apply` | Sync staged agent config to live crontab |
 | `forge logs` | View agent logs (`-f` to follow) |
+| `forge ui` | Start the web dashboard |
 | `forge wh` | Start webhook monitor with auto-tunnel |
 
 Install: `pip install -e apps/forge-cli`
