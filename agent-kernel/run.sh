@@ -150,12 +150,12 @@ AGENT_RUNTIME="${AGENT_RUNTIME:-claude}"
 if [[ "$AGENT_RUNTIME" == "codex" ]]; then
   if [[ "${USE_INNIES:-false}" == "true" ]]; then
     if [[ -n "${INNIES_TOKEN:-}" ]]; then
-      RUNTIME_CMD=(innies codex --token "$INNIES_TOKEN" --)
+      RUNTIME_CMD=(innies codex --token "$INNIES_TOKEN" -- exec)
     else
-      RUNTIME_CMD=(innies codex --)
+      RUNTIME_CMD=(innies codex -- exec)
     fi
   else
-    RUNTIME_CMD=(codex)
+    RUNTIME_CMD=(codex exec)
   fi
 else
   if [[ "${USE_INNIES:-false}" == "true" ]]; then
@@ -215,7 +215,7 @@ if [[ "${USE_INNIES:-false}" == "true" ]]; then
   INNIES_OUT="$(innies doctor 2>&1 || true)"
 
   if [[ "$AGENT_RUNTIME" == "codex" ]]; then
-    if ! echo "$INNIES_OUT" | grep -q "codex_binary.*ok"; then
+    if ! echo "$INNIES_OUT" | grep -q "^OK.*codex_binary"; then
       echo "[preflight] innies doctor: codex_binary check failed" >&2
       echo "$INNIES_OUT" >&2
       exit 1
@@ -229,22 +229,7 @@ if [[ "${USE_INNIES:-false}" == "true" ]]; then
   fi
 fi
 
-# ── preflight: Codex config.toml (Innies mode) ──────────────
-if [[ "$AGENT_RUNTIME" == "codex" ]] && [[ "${USE_INNIES:-false}" == "true" ]]; then
-  CODEX_CONFIG="$HOME/.codex/config.toml"
-  if [[ ! -f "$CODEX_CONFIG" ]]; then
-    echo "[preflight] Missing $CODEX_CONFIG — required for Innies Codex" >&2
-    echo "Create it with:" >&2
-    echo '  model_provider = "innies"' >&2
-    echo '  [model_providers.innies]' >&2
-    echo '  base_url = "https://api.innies.computer/v1/proxy/v1"' >&2
-    exit 1
-  fi
-  if ! grep -q 'model_provider.*=.*"innies"' "$CODEX_CONFIG"; then
-    echo "[preflight] $CODEX_CONFIG does not set model_provider to innies" >&2
-    exit 1
-  fi
-fi
+
 
 # ── assemble system prompt from context files ─────────────────
 SYSTEM_PROMPT=""
@@ -267,12 +252,9 @@ fi
 RUNTIME_ARGS=()
 
 if [[ "$AGENT_RUNTIME" == "codex" ]]; then
-  if [[ "$AGENTIC" == false ]]; then
-    RUNTIME_ARGS+=(--quiet)
-  fi
-  RUNTIME_ARGS+=(--full-auto)
+  RUNTIME_ARGS+=(--dangerously-bypass-approvals-and-sandbox)
   if [[ -n "$SYSTEM_PROMPT" ]]; then
-    RUNTIME_ARGS+=(--instructions "$SYSTEM_PROMPT")
+    RUNTIME_ARGS+=(-c "instructions=$(printf '%s' "$SYSTEM_PROMPT")")
   fi
 else
   if [[ "$AGENTIC" == false ]]; then
