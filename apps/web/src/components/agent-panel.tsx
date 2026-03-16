@@ -6,7 +6,7 @@ type AgentStatus = "staged" | "active" | "modified" | "orphan";
 
 interface Agent {
   id: string;
-  role: "planner" | "worker";
+  role: string;
   interval: string;
   intervalSeconds: number;
   enabled: boolean;
@@ -73,8 +73,13 @@ function StatusDot({ running, overdue }: { running: boolean; overdue: boolean })
   );
 }
 
-function RoleBadge({ role }: { role: "planner" | "worker" }) {
-  const color = role === "planner" ? "text-accent-magenta" : "text-accent-blue";
+function RoleBadge({ role }: { role: string }) {
+  const color =
+    role === "planner"
+      ? "text-accent-magenta"
+      : role === "worker"
+        ? "text-accent-blue"
+        : "text-accent-cyan";
   return (
     <span
       className={`${color} text-sm font-medium uppercase tracking-wide`}
@@ -233,16 +238,90 @@ function sortAgentsByStatus(agents: Agent[]): Agent[] {
   );
 }
 
-function AddAgentForm({ onAdded }: { onAdded: () => void }) {
-  const [type, setType] = useState<"worker" | "planner">("worker");
+interface Template {
+  type: string;
+  interval: string;
+  contexts: string[];
+  agentic: boolean;
+  workspace: boolean;
+}
+
+function AddAgentModal({
+  onClose,
+  onAdded,
+  agents,
+}: {
+  onClose: () => void;
+  onAdded: () => void;
+  agents: Agent[];
+}) {
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [selected, setSelected] = useState<Template | null>(null);
   const [customId, setCustomId] = useState("");
   const [interval, setInterval] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const backdropRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch("/api/templates")
+      .then((res) => res.json())
+      .then((data) => {
+        const tpls: Template[] = (data.templates ?? []).sort(
+          (a: Template, b: Template) => a.type.localeCompare(b.type)
+        );
+        setTemplates(tpls);
+        if (tpls.length > 0) {
+          const worker = tpls.find((t) => t.type === "worker");
+          const initial = worker ?? tpls[0];
+          setSelected(initial);
+          setInterval(initial.interval);
+        }
+      })
+      .catch(() => setError("Failed to load templates"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === backdropRef.current) onClose();
+  };
+
+  const selectTemplate = (tpl: Template) => {
+    setSelected(tpl);
+    setInterval(tpl.interval);
+    setCustomId("");
+    setError(null);
+  };
+
+  const autoId = selected
+    ? (() => {
+        const prefix = selected.type;
+        const existing = agents
+          .filter((a) => a.role === prefix)
+          .map((a) => {
+            const match = a.id.match(new RegExp(`^${prefix}-(\\d+)$`));
+            return match ? parseInt(match[1], 10) : 0;
+          });
+        const next = existing.length > 0 ? Math.max(...existing) + 1 : 1;
+        return `${prefix}-${String(next).padStart(2, "0")}`;
+      })()
+    : "";
 
   const handleSubmit = async () => {
+    if (!selected) return;
     setSubmitting(true);
+    setError(null);
     try {
-      const body: Record<string, string> = { type };
+      const body: Record<string, string> = { type: selected.type };
       if (customId.trim()) body.id = customId.trim();
       if (interval.trim()) body.interval = interval.trim();
       const res = await fetch("/api/agents", {
@@ -251,47 +330,132 @@ function AddAgentForm({ onAdded }: { onAdded: () => void }) {
         body: JSON.stringify(body),
       });
       if (res.ok) {
-        setCustomId("");
-        setInterval("");
         onAdded();
+        onClose();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? `HTTP ${res.status}`);
       }
     } catch {
-      // best-effort
+      setError("Failed to create agent");
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="bg-surface border border-border rounded-md p-2 mb-2">
-      <div className="flex items-center gap-2">
-        <select
-          className="bg-background border border-border rounded px-2 py-1 text-sm text-text"
-          value={type}
-          onChange={(e) => setType(e.target.value as "worker" | "planner")}
-        >
-          <option value="worker">worker</option>
-          <option value="planner">planner</option>
-        </select>
-        <input
-          className="bg-background border border-border rounded px-2 py-1 text-sm text-text w-28"
-          placeholder="ID (auto)"
-          value={customId}
-          onChange={(e) => setCustomId(e.target.value)}
-        />
-        <input
-          className="bg-background border border-border rounded px-2 py-1 text-sm text-text w-20"
-          placeholder="2m"
-          value={interval}
-          onChange={(e) => setInterval(e.target.value)}
-        />
-        <button
-          className="text-xs rounded px-2 py-1 border border-accent-green text-accent-green hover:bg-accent-green/20 transition-colors disabled:opacity-50"
-          onClick={handleSubmit}
-          disabled={submitting}
-        >
-          Add
-        </button>
+    <div
+      ref={backdropRef}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={handleBackdropClick}
+    >
+      <div className="bg-surface border border-border rounded-lg p-4 w-96 max-w-[90vw] max-h-[80vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-text-bright text-base font-medium">Add Agent</h2>
+          <button
+            className="text-muted-foreground hover:text-text-bright transition-colors text-lg leading-none px-1"
+            onClick={onClose}
+          >
+            ×
+          </button>
+        </div>
+
+        {loading && (
+          <p className="text-muted-foreground text-sm">Loading templates…</p>
+        )}
+
+        {!loading && templates.length === 0 && (
+          <p className="text-muted-foreground text-sm">No templates found</p>
+        )}
+
+        {!loading && templates.length > 0 && (
+          <>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {templates.map((tpl) => (
+                <button
+                  key={tpl.type}
+                  className={`flex-1 min-w-[80px] rounded-md border p-2 text-left transition-colors ${
+                    selected?.type === tpl.type
+                      ? "border-accent-cyan bg-accent-cyan/10"
+                      : "border-border bg-background hover:bg-surface-hover"
+                  }`}
+                  onClick={() => selectTemplate(tpl)}
+                >
+                  <div className="text-text-bright text-sm font-medium capitalize">
+                    {tpl.type}
+                  </div>
+                  <div className="text-muted-foreground text-xs">
+                    {tpl.interval}
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {selected && (
+              <div className="flex flex-col gap-2">
+                <div>
+                  <label className="text-muted-foreground text-xs block mb-1">
+                    Auto ID
+                  </label>
+                  <div className="bg-background border border-border rounded px-2 py-1 text-sm text-muted-foreground">
+                    {autoId}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-muted-foreground text-xs block mb-1">
+                    Custom ID (optional)
+                  </label>
+                  <input
+                    className="w-full bg-background border border-border rounded px-2 py-1 text-sm text-text focus:border-accent-cyan outline-none transition-colors"
+                    placeholder={autoId}
+                    value={customId}
+                    onChange={(e) => setCustomId(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-muted-foreground text-xs block mb-1">
+                    Interval
+                  </label>
+                  <input
+                    className="w-full bg-background border border-border rounded px-2 py-1 text-sm text-text focus:border-accent-cyan outline-none transition-colors"
+                    placeholder={selected.interval}
+                    value={interval}
+                    onChange={(e) => setInterval(e.target.value)}
+                  />
+                </div>
+
+                {selected.contexts.length > 0 && (
+                  <div>
+                    <label className="text-muted-foreground text-xs block mb-1">
+                      Context files
+                    </label>
+                    <div className="bg-background border border-border rounded px-2 py-1 text-xs text-muted-foreground max-h-20 overflow-y-auto">
+                      {selected.contexts.map((ctx, i) => (
+                        <div key={i} className="truncate">{ctx}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {error && (
+              <p className="text-accent-red text-xs mt-2">{error}</p>
+            )}
+
+            <div className="flex justify-end mt-3">
+              <button
+                className="text-xs rounded px-3 py-1 border border-accent-green text-accent-green hover:bg-accent-green/20 transition-colors disabled:opacity-50"
+                onClick={handleSubmit}
+                disabled={submitting || !selected}
+              >
+                {submitting ? "Adding…" : "Add Agent"}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -300,7 +464,7 @@ function AddAgentForm({ onAdded }: { onAdded: () => void }) {
 export function AgentPanel() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const [clearConfirming, setClearConfirming] = useState(false);
   const clearTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -398,7 +562,7 @@ export function AgentPanel() {
       <div className="flex items-center gap-2 py-2">
         <button
           className="text-xs rounded px-2 py-1 border border-border text-text hover:bg-surface-hover transition-colors"
-          onClick={() => setShowAddForm((v) => !v)}
+          onClick={() => setShowModal(true)}
         >
           + Add
         </button>
@@ -439,7 +603,13 @@ export function AgentPanel() {
         )}
       </div>
 
-      {showAddForm && <AddAgentForm onAdded={() => { setShowAddForm(false); fetchAgents(); }} />}
+      {showModal && (
+        <AddAgentModal
+          onClose={() => setShowModal(false)}
+          onAdded={fetchAgents}
+          agents={agents}
+        />
+      )}
 
       {error && (
         <p className="text-accent-red text-sm mb-2">{error}</p>

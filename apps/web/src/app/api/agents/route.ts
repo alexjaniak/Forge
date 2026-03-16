@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
+import path from "path";
 import {
   atomicWriteJsonSync,
   cronJobsPath,
   cronStatePath,
+  getForgeRoot,
   lockFilePath,
   templatePath,
 } from "@/lib/paths";
@@ -60,10 +62,9 @@ function isProcessAlive(pid: number): boolean {
   }
 }
 
-function inferRole(contexts: string[]): string {
-  return contexts.some((c) => c.includes("PLANNER.md"))
-    ? "planner"
-    : "worker";
+function inferRole(id: string): string {
+  const match = id.match(/^([a-zA-Z]+)-\d+$/);
+  return match?.[1] ?? "worker";
 }
 
 function buildAgentFromJob(
@@ -98,7 +99,7 @@ function buildAgentFromJob(
 
   return {
     id: job.id,
-    role: inferRole(job.contexts),
+    role: inferRole(job.id),
     interval: job.interval,
     intervalSeconds,
     enabled: job.enabled !== false,
@@ -177,7 +178,20 @@ export async function GET() {
   return NextResponse.json({ agents });
 }
 
-const SAFE_TYPE_RE = /^(worker|planner)$/;
+function availableTemplateTypes(): Set<string> {
+  const templatesDir = path.join(getForgeRoot(), "templates");
+  try {
+    return new Set(
+      fs
+        .readdirSync(templatesDir)
+        .filter((f) => f.endsWith(".json"))
+        .map((f) => f.replace(/\.json$/, ""))
+    );
+  } catch {
+    return new Set();
+  }
+}
+
 const SAFE_ID_RE = /^[a-z][a-z0-9-]{0,63}$/;
 
 export async function POST(request: NextRequest) {
@@ -185,9 +199,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const type: string = body.type;
 
-    if (!type || !SAFE_TYPE_RE.test(type)) {
+    const validTypes = availableTemplateTypes();
+    if (!type || !validTypes.has(type)) {
       return NextResponse.json(
-        { error: "type must be 'worker' or 'planner'" },
+        { error: `type must be one of: ${[...validTypes].sort().join(", ")}` },
         { status: 400 }
       );
     }
