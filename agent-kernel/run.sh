@@ -204,6 +204,16 @@ if [[ "$AGENT_RUNTIME" == "codex" ]] && [[ "${USE_INNIES:-false}" != "true" ]]; 
   fi
 fi
 
+# ── preflight: Codex auth (direct mode) ──────────────────────
+if [[ "$AGENT_RUNTIME" == "codex" ]] && [[ "${USE_INNIES:-false}" != "true" ]]; then
+  if [[ -z "${OPENAI_API_KEY:-}" ]]; then
+    echo "[preflight] OPENAI_API_KEY is not set. Add it to agent-kernel/.env or export it." >&2
+    exit 1
+  fi
+  # Pipe key to codex login so the CLI has valid credentials for this session
+  printf '%s' "$OPENAI_API_KEY" | codex login --with-api-key 2>/dev/null || true
+fi
+
 # ── preflight: Innies proxy connectivity ─────────────────────
 if [[ "${USE_INNIES:-false}" == "true" ]]; then
   if ! command -v innies &>/dev/null; then
