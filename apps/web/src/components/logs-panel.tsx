@@ -37,7 +37,10 @@ export function LogsPanel() {
         let changed = false;
         for (const b of newBlocks) {
           const existing = blockMap.get(b.key);
-          if (!existing || (b.endTimestamp && !existing.endTimestamp)) {
+          if (!existing) {
+            blockMap.set(b.key, b);
+            changed = true;
+          } else if (existing.type !== "skip" && b.endTimestamp && !existing.endTimestamp) {
             blockMap.set(b.key, b);
             changed = true;
           }
@@ -245,9 +248,13 @@ export function LogsPanel() {
       : blocks.filter((b) => b.agentId === activeTab);
 
   const displayBlocks = filter
-    ? filteredBlocks.filter((b) =>
-        b.content.toLowerCase().includes(filter.toLowerCase())
-      )
+    ? filteredBlocks.filter((b) => {
+        const q = filter.toLowerCase();
+        return (
+          b.content.toLowerCase().includes(q) ||
+          (b.skipReason && b.skipReason.toLowerCase().includes(q))
+        );
+      })
     : filteredBlocks;
 
   return (
@@ -290,9 +297,13 @@ export function LogsPanel() {
             <p className="text-muted-foreground text-sm">No logs yet</p>
           </div>
         ) : (
-          displayBlocks.map((block) => (
-            <LogCard key={block.key} block={block} showAgent={activeTab === "all"} />
-          ))
+          displayBlocks.map((block) =>
+            block.type === "skip" ? (
+              <SkipCard key={block.key} block={block} showAgent={activeTab === "all"} />
+            ) : (
+              <LogCard key={block.key} block={block} showAgent={activeTab === "all"} />
+            )
+          )
         )}
       </div>
     </div>
@@ -372,6 +383,22 @@ function LogCard({
             <span className="text-muted-foreground/60"> → {block.displayEndTime}</span>
           )}
         </span>
+        {block.duration != null && (
+          <span className="text-xs text-muted-foreground bg-surface-hover px-1.5 py-0.5 rounded">
+            {block.duration}s
+          </span>
+        )}
+        {block.exitCode != null && (
+          <span
+            className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+              block.exitCode === 0
+                ? "bg-green-500/15 text-green-400"
+                : "bg-red-500/15 text-red-400"
+            }`}
+          >
+            exit {block.exitCode}
+          </span>
+        )}
       </div>
       <div className="relative">
         <pre
@@ -397,6 +424,37 @@ function LogCard({
         >
           {expanded ? "▲ Show less" : "▼ Show more"}
         </button>
+      )}
+    </div>
+  );
+}
+
+function SkipCard({
+  block,
+  showAgent,
+}: {
+  block: LogBlock;
+  showAgent: boolean;
+}) {
+  const agentColor = getAgentColor(block.agentId);
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5 text-sm text-muted-foreground bg-surface/50 border border-border/50 rounded">
+      {showAgent && (
+        <span
+          className="font-semibold px-1.5 py-0.5 rounded text-xs"
+          style={{
+            backgroundColor: agentColor + "20",
+            color: agentColor,
+          }}
+        >
+          {block.agentId}
+        </span>
+      )}
+      <span>{block.displayTime}</span>
+      <span className="text-muted-foreground/60">skipped</span>
+      {block.skipReason && (
+        <span className="text-muted-foreground/80">{block.skipReason}</span>
       )}
     </div>
   );
