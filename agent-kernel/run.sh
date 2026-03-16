@@ -123,9 +123,9 @@ if [[ -n "$WORKSPACE_ID" ]]; then
   if [[ -f "$LOCKFILE" ]]; then
     OLD_PID=$(cat "$LOCKFILE" 2>/dev/null)
     if kill -0 "$OLD_PID" 2>/dev/null; then
-      SYSTEM_LOG="$KERNEL_DIR/logs/system.log"
-      mkdir -p "$(dirname "$SYSTEM_LOG")"
-      echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $WORKSPACE_ID: skipped (pid $OLD_PID still running)" >> "$SYSTEM_LOG"
+      LOGS_DIR="$KERNEL_DIR/logs"
+      mkdir -p "$LOGS_DIR"
+      echo "=== SKIP $(date -u +%Y-%m-%dT%H:%M:%SZ) reason=\"pid $OLD_PID still running\" ===" >> "$LOGS_DIR/$WORKSPACE_ID.log"
       exit 0
     fi
   fi
@@ -134,11 +134,30 @@ if [[ -n "$WORKSPACE_ID" ]]; then
   echo $$ > "$LOCKFILE"
 fi
 
-# ── run boundary markers (used by logs/view.sh to group output) ──
-# Emit early so ALL output (including errors) is captured between delimiters.
-echo "=== RUN $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+# ── buffered atomic logging ──────────────────────────────────
+LOGS_DIR="$KERNEL_DIR/logs"
+mkdir -p "$LOGS_DIR"
+RUN_START_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+RUN_START_EPOCH="$(date +%s)"
+TMPLOG="$(mktemp /tmp/forge-run-XXXXXX.log)"
+
+# Redirect all stdout/stderr to the temp file
+exec > "$TMPLOG" 2>&1
+
 cleanup() {
-  echo "=== END RUN $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+  local rc=$?
+  local end_epoch
+  end_epoch="$(date +%s)"
+  local duration=$(( end_epoch - RUN_START_EPOCH ))
+  local logfile="$LOGS_DIR/${WORKSPACE_ID:-unknown}.log"
+
+  # Prepend header + atomically append buffered output
+  {
+    echo "=== RUN ${RUN_START_TS} duration=${duration}s exit=${rc} ==="
+    cat "$TMPLOG"
+  } >> "$logfile"
+
+  rm -f "$TMPLOG"
   rm -f "${LOCKFILE:-}"
 }
 trap cleanup EXIT
