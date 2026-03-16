@@ -25,6 +25,7 @@ export async function GET() {
       contexts: data.contexts ?? [],
       agentic: data.agentic ?? true,
       workspace: data.workspace ?? true,
+      repo: data.repo ?? "",
     };
   });
 
