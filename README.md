@@ -26,15 +26,19 @@ Cron jobs drive recurring agent runs. See [`agent-kernel/cron/README.md`](agent-
 
 Unified command-line interface for agent orchestration.
 
-```
-forge add worker              # add a new worker agent
-forge add planner             # add a new planner agent
-forge remove <id>             # remove an agent
-forge cron apply              # sync crontab
-forge cron status --watch     # live agent timing
-forge logs -f                 # follow all logs
-forge wh                      # start webhook monitor
-```
+| Command | Description |
+|---------|-------------|
+| `forge add <role>` | Add an agent from a template (worker, planner, super) |
+| `forge remove <id>` | Remove an agent |
+| `forge apply` | Sync staged agent config to live crontab |
+| `forge run <id>` | Run an agent once immediately |
+| `forge clear` | Clear active crontab and state |
+| `forge clear --staged` | Clear only staged config |
+| `forge list` | Show all agents (staged, active, unstaged) |
+| `forge status` | Alias for `forge list` |
+| `forge logs` | View agent logs (`-f` to follow) |
+| `forge ui` | Start the web dashboard |
+| `forge wh` | Start webhook monitor with auto-tunnel |
 
 Install: `pip install -e apps/forge-cli`
 
