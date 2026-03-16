@@ -88,7 +88,7 @@ function inferRole(id: string): string {
 function buildAgentFromJob(
   job: CronJob,
   jobState: CronState["jobs"][string] | undefined,
-  status: "staged" | "active" | "modified" | "orphan",
+  status: "new" | "active" | "modified" | "deleted",
   stagedInterval?: string
 ) {
   const intervalSeconds = parseIntervalSeconds(job.interval);
@@ -164,7 +164,7 @@ export async function GET() {
     const inState = activeIds.has(job.id);
 
     if (!hasState || !inState) {
-      return buildAgentFromJob(job, undefined, "staged");
+      return buildAgentFromJob(job, undefined, "new");
     }
 
     const activeInterval = jobState?.interval;
@@ -190,7 +190,7 @@ export async function GET() {
         agentic: false,
         workspace: false,
       };
-      agents.push(buildAgentFromJob(orphanJob, jobState, "orphan"));
+      agents.push(buildAgentFromJob(orphanJob, jobState, "deleted"));
     }
   }
 
