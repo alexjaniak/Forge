@@ -2,8 +2,6 @@ export interface LogBlock {
   agentId: string;
   timestamp: string;
   displayTime: string;
-  endTimestamp?: string;
-  displayEndTime?: string;
   duration?: number;
   exitCode?: number;
   content: string;
@@ -12,9 +10,8 @@ export interface LogBlock {
   skipReason?: string;
 }
 
-const RUN_MARKER = /^=== RUN (\S+) \| duration=(\d+)s \| exit=(\d+) ===$/;
-const END_MARKER = /^=== END RUN(?:\s+(\S+))? ===$/;
-const SKIP_MARKER = /^=== SKIP (\S+) \| reason=(.+) ===$/;
+const RUN_MARKER = /^=== RUN (\S+) duration=(\d+)s exit=(\d+) ===$/;
+const SKIP_MARKER = /^=== SKIP (\S+) reason=(.+) ===$/;
 
 function formatTime(isoTimestamp: string): string {
   try {
@@ -100,34 +97,8 @@ export function parseLogBlocks(
       currentDuration = parseInt(match[2], 10);
       currentExitCode = parseInt(match[3], 10);
       currentLines = [];
-    } else {
-      const endMatch = line.match(END_MARKER);
-      if (endMatch) {
-        if (currentTimestamp && currentLines.length > 0) {
-          const content = currentLines.join("\n").trim();
-          if (content) {
-            const endTs = endMatch[1] || undefined;
-            blocks.push({
-              agentId,
-              timestamp: currentTimestamp,
-              displayTime: formatTime(currentTimestamp),
-              endTimestamp: endTs,
-              displayEndTime: endTs ? formatTime(endTs) : undefined,
-              duration: currentDuration,
-              exitCode: currentExitCode,
-              content,
-              key: `${agentId}-${currentTimestamp}`,
-              type: "run",
-            });
-          }
-        }
-        currentTimestamp = null;
-        currentLines = [];
-        currentDuration = undefined;
-        currentExitCode = undefined;
-      } else if (currentTimestamp) {
-        currentLines.push(line);
-      }
+    } else if (currentTimestamp) {
+      currentLines.push(line);
     }
   }
 

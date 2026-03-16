@@ -40,7 +40,7 @@ export function LogsPanel() {
           if (!existing) {
             blockMap.set(b.key, b);
             changed = true;
-          } else if (existing.type !== "skip" && b.endTimestamp && !existing.endTimestamp) {
+          } else if (existing.type !== "skip" && b.content.length > existing.content.length) {
             blockMap.set(b.key, b);
             changed = true;
           }
@@ -50,15 +50,15 @@ export function LogsPanel() {
         if (mode === "all") {
           merged.sort(
             (a, b) =>
-              new Date(a.endTimestamp ?? a.timestamp).getTime() -
-              new Date(b.endTimestamp ?? b.timestamp).getTime()
+              new Date(a.timestamp).getTime() -
+              new Date(b.timestamp).getTime()
           );
           return merged.slice(-MAX_BLOCKS);
         } else {
           merged.sort(
             (a, b) =>
-              new Date(a.endTimestamp ?? a.timestamp).getTime() -
-              new Date(b.endTimestamp ?? b.timestamp).getTime()
+              new Date(a.timestamp).getTime() -
+              new Date(b.timestamp).getTime()
           );
           return merged.slice(-MAX_BLOCKS);
         }
@@ -379,9 +379,6 @@ function LogCard({
         )}
         <span className="text-sm text-muted-foreground">
           {block.displayTime}
-          {block.displayEndTime && (
-            <span className="text-muted-foreground/60"> → {block.displayEndTime}</span>
-          )}
         </span>
         {block.duration != null && (
           <span className="text-xs text-muted-foreground bg-surface-hover px-1.5 py-0.5 rounded">
