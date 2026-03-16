@@ -267,6 +267,7 @@ export async function POST(request: NextRequest) {
       contexts: template.contexts ?? [],
       agentic: template.agentic ?? true,
       workspace: template.workspace ?? true,
+      repo: template.repo ?? "",
     };
 
     data.jobs.push(newJob);
