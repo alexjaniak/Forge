@@ -4,7 +4,7 @@ import { useState } from "react";
 import { AgentPanel } from "@/components/agent-panel";
 import { LogsPanel } from "@/components/logs-panel";
 import { EventsPanel } from "@/components/events-panel";
-import IssuesPanel from "@/components/issues-panel";
+import { IssuesPanel } from "@/components/issues-panel";
 import { ResizableLayout } from "@/components/resizable-layout";
 
 type Tab = "logs" | "events" | "issues";

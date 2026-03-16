@@ -117,7 +117,7 @@ function IssueCard({ issue, repo }: { issue: Issue; repo: string }) {
   );
 }
 
-export default function IssuesPanel() {
+export function IssuesPanel() {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [repo, setRepo] = useState("");
   const [error, setError] = useState("");
