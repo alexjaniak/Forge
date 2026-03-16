@@ -257,7 +257,7 @@ function AddAgentModal({
 }) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selected, setSelected] = useState<Template | null>(null);
-  const [customId, setCustomId] = useState("");
+  const [agentId, setAgentId] = useState("");
   const [interval, setInterval] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -277,6 +277,7 @@ function AddAgentModal({
           const initial = worker ?? tpls[0];
           setSelected(initial);
           setInterval(initial.interval);
+          setAgentId(getAutoId(initial.type));
         }
       })
       .catch(() => setError("Failed to load templates"))
@@ -298,23 +299,23 @@ function AddAgentModal({
   const selectTemplate = (tpl: Template) => {
     setSelected(tpl);
     setInterval(tpl.interval);
-    setCustomId("");
+    setAgentId(getAutoId(tpl.type));
     setError(null);
   };
 
-  const autoId = selected
-    ? (() => {
-        const prefix = selected.type;
-        const existing = agents
-          .filter((a) => a.role === prefix)
-          .map((a) => {
-            const match = a.id.match(new RegExp(`^${prefix}-(\\d+)$`));
-            return match ? parseInt(match[1], 10) : 0;
-          });
-        const next = existing.length > 0 ? Math.max(...existing) + 1 : 1;
-        return `${prefix}-${String(next).padStart(2, "0")}`;
-      })()
-    : "";
+  const getAutoId = useCallback(
+    (type: string) => {
+      const existing = agents
+        .filter((a) => a.role === type)
+        .map((a) => {
+          const match = a.id.match(new RegExp(`^${type}-(\\d+)$`));
+          return match ? parseInt(match[1], 10) : 0;
+        });
+      const next = existing.length > 0 ? Math.max(...existing) + 1 : 1;
+      return `${type}-${String(next).padStart(2, "0")}`;
+    },
+    [agents]
+  );
 
   const handleSubmit = async () => {
     if (!selected) return;
@@ -322,7 +323,7 @@ function AddAgentModal({
     setError(null);
     try {
       const body: Record<string, string> = { type: selected.type };
-      if (customId.trim()) body.id = customId.trim();
+      if (agentId.trim()) body.id = agentId.trim();
       if (interval.trim()) body.interval = interval.trim();
       const res = await fetch("/api/agents", {
         method: "POST",
@@ -381,10 +382,10 @@ function AddAgentModal({
                   }`}
                   onClick={() => selectTemplate(tpl)}
                 >
-                  <div className="text-text-bright text-sm font-medium capitalize">
+                  <div className="text-text-bright text-base font-medium capitalize">
                     {tpl.type}
                   </div>
-                  <div className="text-muted-foreground text-xs">
+                  <div className="text-muted-foreground text-sm">
                     {tpl.interval}
                   </div>
                 </button>
@@ -394,50 +395,28 @@ function AddAgentModal({
             {selected && (
               <div className="flex flex-col gap-2">
                 <div>
-                  <label className="text-muted-foreground text-xs block mb-1">
-                    Auto ID
-                  </label>
-                  <div className="bg-background border border-border rounded px-2 py-1 text-sm text-muted-foreground">
-                    {autoId}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-muted-foreground text-xs block mb-1">
-                    Custom ID (optional)
+                  <label className="text-muted-foreground text-sm block mb-1">
+                    ID
                   </label>
                   <input
-                    className="w-full bg-background border border-border rounded px-2 py-1 text-sm text-text focus:border-accent-cyan outline-none transition-colors"
-                    placeholder={autoId}
-                    value={customId}
-                    onChange={(e) => setCustomId(e.target.value)}
+                    className="w-full bg-background border border-border rounded px-2 py-1.5 text-base text-text focus:border-accent-cyan outline-none transition-colors"
+                    value={agentId}
+                    onChange={(e) => setAgentId(e.target.value)}
                   />
                 </div>
 
                 <div>
-                  <label className="text-muted-foreground text-xs block mb-1">
+                  <label className="text-muted-foreground text-sm block mb-1">
                     Interval
                   </label>
                   <input
-                    className="w-full bg-background border border-border rounded px-2 py-1 text-sm text-text focus:border-accent-cyan outline-none transition-colors"
+                    className="w-full bg-background border border-border rounded px-2 py-1.5 text-base text-text focus:border-accent-cyan outline-none transition-colors"
                     placeholder={selected.interval}
                     value={interval}
                     onChange={(e) => setInterval(e.target.value)}
                   />
                 </div>
 
-                {selected.contexts.length > 0 && (
-                  <div>
-                    <label className="text-muted-foreground text-xs block mb-1">
-                      Context files
-                    </label>
-                    <div className="bg-background border border-border rounded px-2 py-1 text-xs text-muted-foreground max-h-20 overflow-y-auto">
-                      {selected.contexts.map((ctx, i) => (
-                        <div key={i} className="truncate">{ctx}</div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
@@ -447,7 +426,7 @@ function AddAgentModal({
 
             <div className="flex justify-end mt-3">
               <button
-                className="text-xs rounded px-3 py-1 border border-accent-green text-accent-green hover:bg-accent-green/20 transition-colors disabled:opacity-50"
+                className="text-sm rounded px-3 py-1.5 border border-accent-green text-accent-green hover:bg-accent-green/20 transition-colors disabled:opacity-50"
                 onClick={handleSubmit}
                 disabled={submitting || !selected}
               >
