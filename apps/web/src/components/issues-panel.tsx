@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 interface Issue {
   number: number;
@@ -38,6 +38,46 @@ function labelColor(name: string): string {
     ROLE_COLORS[name] ??
     TYPE_COLORS[name] ??
     "bg-surface-hover text-text"
+  );
+}
+
+function playAdminAlert() {
+  try {
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = "sine";
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+
+    // First tone
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    // Second tone (slightly higher)
+    osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.15);
+    // Fade out
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.3);
+  } catch {
+    // Audio not available — silently ignore
+  }
+}
+
+function BellIcon({ muted }: { muted: boolean }) {
+  if (muted) {
+    return (
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M8 1.5A3.5 3.5 0 0 0 4.5 5v2.5c0 .9-.3 1.7-.8 2.4L3 10.8V12h3.5a1.5 1.5 0 0 0 3 0H13v-1.2l-.7-.9c-.5-.7-.8-1.5-.8-2.4V5A3.5 3.5 0 0 0 8 1.5z" />
+        <line x1="2" y1="2" x2="14" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M8 1.5A3.5 3.5 0 0 0 4.5 5v2.5c0 .9-.3 1.7-.8 2.4L3 10.8V12h3.5a1.5 1.5 0 0 0 3 0H13v-1.2l-.7-.9c-.5-.7-.8-1.5-.8-2.4V5A3.5 3.5 0 0 0 8 1.5z" />
+    </svg>
   );
 }
 
@@ -83,6 +123,14 @@ export default function IssuesPanel() {
   const [error, setError] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [roleFilter, setRoleFilter] = useState<Set<string>>(new Set());
+  const [muted, setMuted] = useState(() => {
+    try { return localStorage.getItem("forge-admin-alert-muted") === "true"; } catch { return false; }
+  });
+  const prevIssuesRef = useRef<Issue[]>([]);
+  const initialLoadRef = useRef(true);
+
+  const mutedRef = useRef(muted);
+  mutedRef.current = muted;
 
   const fetchIssues = useCallback(async () => {
     try {
@@ -90,8 +138,34 @@ export default function IssuesPanel() {
       const data = await res.json();
       if (data.error) setError(data.error);
       else setError("");
-      setIssues(data.issues ?? []);
+      const newIssues: Issue[] = data.issues ?? [];
+      setIssues(newIssues);
       if (data.repo) setRepo(data.repo);
+
+      // Skip alert on initial load
+      if (initialLoadRef.current) {
+        initialLoadRef.current = false;
+        prevIssuesRef.current = newIssues;
+        return;
+      }
+
+      // Detect newly-added role:admin labels
+      if (!mutedRef.current) {
+        const prevAdminIds = new Set(
+          prevIssuesRef.current
+            .filter((i) => i.labels.some((l) => l.name === "role:admin"))
+            .map((i) => i.number)
+        );
+        const newAdminIssues = newIssues.filter(
+          (i) =>
+            i.labels.some((l) => l.name === "role:admin") &&
+            !prevAdminIds.has(i.number)
+        );
+        if (newAdminIssues.length > 0) {
+          playAdminAlert();
+        }
+      }
+      prevIssuesRef.current = newIssues;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Fetch failed");
     }
@@ -102,6 +176,10 @@ export default function IssuesPanel() {
     const id = setInterval(fetchIssues, 5000);
     return () => clearInterval(id);
   }, [fetchIssues]);
+
+  useEffect(() => {
+    try { localStorage.setItem("forge-admin-alert-muted", String(muted)); } catch {}
+  }, [muted]);
 
   // Collect unique status and role labels present in data
   const statusLabels = [
@@ -150,6 +228,17 @@ export default function IssuesPanel() {
     <div className="flex flex-col h-full overflow-hidden">
       {/* Filter bar */}
       <div className="flex items-center gap-2 border-b border-border px-3 py-2 shrink-0 flex-wrap">
+        <button
+          onClick={() => setMuted((m) => !m)}
+          title={muted ? "Unmute admin alerts" : "Mute admin alerts"}
+          className={`px-1.5 py-0.5 rounded transition-colors ${
+            muted
+              ? "text-accent-red"
+              : "text-muted-foreground hover:text-text-bright"
+          }`}
+        >
+          <BellIcon muted={muted} />
+        </button>
         {statusLabels.map((s) => (
           <button
             key={s}
