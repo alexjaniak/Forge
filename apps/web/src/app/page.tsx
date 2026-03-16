@@ -4,9 +4,10 @@ import { useState } from "react";
 import { AgentPanel } from "@/components/agent-panel";
 import { LogsPanel } from "@/components/logs-panel";
 import { EventsPanel } from "@/components/events-panel";
+import IssuesPanel from "@/components/issues-panel";
 import { ResizableLayout } from "@/components/resizable-layout";
 
-type Tab = "logs" | "events";
+type Tab = "logs" | "events" | "issues";
 
 function TabButton({
   label,
@@ -48,11 +49,16 @@ function RightPanel() {
           active={activeTab === "events"}
           onClick={() => setActiveTab("events")}
         />
+        <TabButton
+          label="Issues"
+          active={activeTab === "issues"}
+          onClick={() => setActiveTab("issues")}
+        />
       </div>
 
       {/* Active panel */}
       <div className="flex-1 overflow-hidden min-h-0">
-        {activeTab === "logs" ? <LogsPanel /> : <EventsPanel />}
+        {activeTab === "logs" ? <LogsPanel /> : activeTab === "events" ? <EventsPanel /> : <IssuesPanel />}
       </div>
     </div>
   );
