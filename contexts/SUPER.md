@@ -51,7 +51,9 @@ The admin may reject an epic PR by setting `role:super` + `status:needs-review` 
 
 ## Sweeps (cross-epic)
 
-Each cycle, also perform maintenance sweeps across the entire project. Planners handle stuck detection within their own epics — you handle everything else:
+**Only run sweeps if there are NO epic PRs to review** (i.e., no issues labeled `status:needs-review` + `role:super`). Reviews are your primary job — sweeps are secondary maintenance that should not compete for runtime.
+
+Each cycle where no reviews are pending, perform maintenance sweeps across the entire project. Planners handle stuck detection within their own epics — you handle everything else:
 
 - **Stale issues**: close issues whose linked PRs have already been merged but the issue was never moved to `status:done`.
 - **Orphaned PRs**: PRs with no linked issue or whose issue was closed without merging.
