@@ -48,8 +48,8 @@ templates/       Agent configuration templates (worker.json, planner.json, super
 ## Getting started
 
 ```bash
-git clone https://github.com/alexjaniak/DACL.git
-cd DACL
+git clone https://github.com/alexjaniak/Forge.git
+cd Forge
 ./install.sh
 ```
 

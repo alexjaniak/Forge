@@ -2,7 +2,7 @@
 
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
-const STORAGE_KEY = "dacl-panel-sizes";
+const STORAGE_KEY = "forge-panel-sizes";
 const SIDEBAR_MIN = 200;
 const SIDEBAR_MAX = 500;
 const PANEL_MIN = 100;
