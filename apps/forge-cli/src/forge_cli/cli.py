@@ -18,7 +18,6 @@ def main():
 main.add_command(add)
 main.add_command(apply_cmd, name="apply")
 main.add_command(clear_cmd, name="clear")
-main.add_command(list_cmd, name="list")
 main.add_command(logs)
 main.add_command(remove)
 main.add_command(run_cmd, name="run")
