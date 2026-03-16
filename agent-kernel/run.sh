@@ -206,12 +206,18 @@ fi
 
 # ── preflight: Codex auth (direct mode) ──────────────────────
 if [[ "$AGENT_RUNTIME" == "codex" ]] && [[ "${USE_INNIES:-false}" != "true" ]]; then
-  if [[ -z "${OPENAI_API_KEY:-}" ]]; then
-    echo "[preflight] OPENAI_API_KEY is not set. Add it to agent-kernel/.env or export it." >&2
+  if [[ -n "${OPENAI_API_KEY:-}" ]]; then
+    # API-key auth: pipe key to codex login
+    printf '%s' "$OPENAI_API_KEY" | codex login --with-api-key 2>/dev/null || true
+  elif codex login status &>/dev/null; then
+    # Existing session tokens (ChatGPT subscription via ~/.codex/auth.json) — nothing to do
+    :
+  else
+    echo "[preflight] No Codex credentials found." >&2
+    echo "  Option 1: Set OPENAI_API_KEY in agent-kernel/.env (API key auth)" >&2
+    echo "  Option 2: Run 'codex login' first (ChatGPT subscription auth)" >&2
     exit 1
   fi
-  # Pipe key to codex login so the CLI has valid credentials for this session
-  printf '%s' "$OPENAI_API_KEY" | codex login --with-api-key 2>/dev/null || true
 fi
 
 # ── preflight: Innies proxy connectivity ─────────────────────
