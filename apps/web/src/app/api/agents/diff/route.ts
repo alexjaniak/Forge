@@ -37,6 +37,10 @@ interface CronState {
 
 type DiffStatus = "new" | "modified" | "deleted";
 
+interface FieldChange {
+  from: unknown;
+  to: unknown;
+}
 interface AgentDiff {
   id: string;
   status: DiffStatus;
