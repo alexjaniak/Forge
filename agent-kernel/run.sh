@@ -126,6 +126,8 @@ if [[ -n "$WORKSPACE_ID" ]]; then
       SYSTEM_LOG="$KERNEL_DIR/logs/system.log"
       mkdir -p "$(dirname "$SYSTEM_LOG")"
       echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $WORKSPACE_ID: skipped (pid $OLD_PID still running)" >> "$SYSTEM_LOG"
+      mkdir -p "$KERNEL_DIR/logs"
+      echo "=== SKIP $(date -u +%Y-%m-%dT%H:%M:%SZ) | reason=lock-contention pid=$OLD_PID ===" >> "$KERNEL_DIR/logs/${WORKSPACE_ID}.log"
       exit 0
     fi
   fi
@@ -134,11 +136,30 @@ if [[ -n "$WORKSPACE_ID" ]]; then
   echo $$ > "$LOCKFILE"
 fi
 
-# ── run boundary markers (used by logs/view.sh to group output) ──
-# Emit early so ALL output (including errors) is captured between delimiters.
-echo "=== RUN $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+# ── buffered output with atomic append ───────────────────────
+# Buffer all output to a temp file, then atomically append header + content + footer
+# to the agent log on exit. This ensures no partial output appears in the log.
+TMPLOG=$(mktemp /tmp/forge-${WORKSPACE_ID:-$$}-$$.log)
+RUN_START=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+RUN_START_SECS=$SECONDS
+exec > "$TMPLOG" 2>&1
+
 cleanup() {
-  echo "=== END RUN $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+  local exit_code=$?
+  local end_ts
+  end_ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  local duration=$(( SECONDS - ${RUN_START_SECS:-0} ))
+
+  local LOG_FILE="$KERNEL_DIR/logs/${WORKSPACE_ID:-agent}.log"
+  mkdir -p "$(dirname "$LOG_FILE")"
+
+  {
+    echo "=== RUN ${RUN_START} | duration=${duration}s | exit=${exit_code} ==="
+    cat "$TMPLOG"
+    echo "=== END RUN ${end_ts} ==="
+  } >> "$LOG_FILE"
+
+  rm -f "$TMPLOG"
   rm -f "${LOCKFILE:-}"
 }
 trap cleanup EXIT

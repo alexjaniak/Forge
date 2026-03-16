@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
-import path from "path";
 import { spawn } from "child_process";
 import {
   cronJobsPath,
   runShPath,
   getForgeRoot,
-  agentLogPath,
 } from "@/lib/paths";
 
 const SAFE_ID_RE = /^[a-z][a-z0-9-]{0,63}$/;
@@ -56,20 +54,12 @@ export async function POST(
   if (agent.repo) args.push("--repo", agent.repo);
   args.push(agent.prompt);
 
-  const logPath = agentLogPath(agent.id);
-  const logDir = path.dirname(logPath);
-  if (!fs.existsSync(logDir)) {
-    fs.mkdirSync(logDir, { recursive: true });
-  }
-  const logFd = fs.openSync(logPath, "a");
-
   const child = spawn("bash", [runShPath(), ...args], {
     cwd: getForgeRoot(),
     detached: true,
-    stdio: ["ignore", logFd, logFd],
+    stdio: ["ignore", "ignore", "ignore"],
   });
   child.unref();
-  fs.closeSync(logFd);
 
   return NextResponse.json({ status: "started" });
 }
