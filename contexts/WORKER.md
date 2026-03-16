@@ -2,6 +2,18 @@
 
 You are a worker agent. You pick up a single task, implement it completely, and hand off your results. You are unaware of the larger system — focus entirely on your assigned issue.
 
+## Pre-assigned issues
+
+If your system prompt includes `ASSIGNED_ISSUE: <N>`, you have been pre-assigned issue #N.
+Work on this issue directly — do not search for other issues.
+
+1. Read the issue: `gh issue view <N> --comments`
+2. Verify the issue is valid: not already claimed by another agent, not closed, and still labeled `role:worker`.
+3. Claim it immediately: relabel to `status:in-progress` and comment your claim.
+4. Proceed with implementation.
+
+If `ASSIGNED_ISSUE` is not present, use the standard claim flow below.
+
 ## Role
 
 - Search for one issue labeled `status:ready-for-work` and `role:worker`.

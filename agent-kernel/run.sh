@@ -8,6 +8,9 @@ export PATH="$HOME/.claude/local:/opt/homebrew/bin:/usr/local/bin:$PATH"
 KERNEL_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(cd "$KERNEL_DIR/.." && pwd)"
 
+# ── load lock system ────────────────────────────────────────
+source "$KERNEL_DIR/locks.sh"
+
 # ── load .env if present (overrides, etc.) ─────────────────────
 if [[ -f "$KERNEL_DIR/.env" ]]; then
   set -a
@@ -132,6 +135,9 @@ echo "=== RUN $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
 cleanup() {
   echo "=== END RUN $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
   rm -f "${LOCKFILE:-}"
+  if [[ -n "${FORGE_LOCKED_ISSUE:-}" ]]; then
+    lock_release issue "$FORGE_LOCKED_ISSUE"
+  fi
 }
 trap cleanup EXIT
 
@@ -171,22 +177,125 @@ for ctx in "${CONTEXTS[@]}"; do
 done
 
 if [[ "$IS_WORKER" == true ]]; then
-  GH_ARGS=(issue list --label "status:ready-for-work" --label "role:worker" --json number --jq 'length')
+  GH_ARGS=(issue list --label "status:ready-for-work" --label "role:worker" --json number --jq '.[].number')
 
   if [[ "$TARGET_REPO" == github.com/* ]]; then
     GH_REPO="${TARGET_REPO#github.com/}"
     GH_ARGS+=(--repo "$GH_REPO")
   fi
 
-  AVAILABLE=$(gh "${GH_ARGS[@]}" 2>/dev/null || echo "error")
+  ISSUES=$(gh "${GH_ARGS[@]}" 2>/dev/null || echo "error")
 
-  if [[ "$AVAILABLE" == "0" ]]; then
+  if [[ "$ISSUES" == "error" ]]; then
+    # gh failed (network error, etc.) — proceed without pre-assignment
+    echo "[preflight] gh issue list failed — proceeding without lock"
+  elif [[ -z "$ISSUES" ]]; then
     echo "No issues with status:ready-for-work + role:worker — skipping run"
     exit 0
+  else
+    # Try to lock one issue
+    FORGE_LOCKED_ISSUE=""
+    for ISSUE_NUM in $ISSUES; do
+      if lock_acquire issue "$ISSUE_NUM" "$WORKSPACE_ID" 2>/dev/null; then
+        FORGE_LOCKED_ISSUE="$ISSUE_NUM"
+        break
+      fi
+    done
+
+    if [[ -z "$FORGE_LOCKED_ISSUE" ]]; then
+      echo "No unlocked worker issues available — skipping run"
+      exit 0
+    fi
+
+    export FORGE_LOCKED_ISSUE
+    echo "[preflight] Locked issue #$FORGE_LOCKED_ISSUE for $WORKSPACE_ID"
   fi
-  # If gh fails (network error, etc.), proceed with the run rather than skipping
 fi
 
+# ── preflight: skip idle planner runs ────────────────────────
+IS_PLANNER=false
+for ctx in "${CONTEXTS[@]}"; do
+  if [[ "$ctx" == *PLANNER.md ]]; then
+    IS_PLANNER=true
+    break
+  fi
+done
+
+if [[ "$IS_PLANNER" == true ]]; then
+  GH_ARGS=(issue list --label "role:planner" --state open --json number --jq '.[].number')
+
+  if [[ "$TARGET_REPO" == github.com/* ]]; then
+    GH_REPO="${TARGET_REPO#github.com/}"
+    GH_ARGS+=(--repo "$GH_REPO")
+  fi
+
+  ISSUES=$(gh "${GH_ARGS[@]}" 2>/dev/null || echo "error")
+
+  if [[ "$ISSUES" == "error" ]]; then
+    # gh failed (network error, etc.) — proceed without pre-assignment
+    echo "[preflight] gh issue list failed — proceeding without lock"
+  elif [[ -z "$ISSUES" ]]; then
+    echo "[preflight] No open issues with role:planner — proceeding without lock"
+  else
+    # Try to lock one issue
+    FORGE_LOCKED_ISSUE=""
+    for ISSUE_NUM in $ISSUES; do
+      if lock_acquire issue "$ISSUE_NUM" "$WORKSPACE_ID" 2>/dev/null; then
+        FORGE_LOCKED_ISSUE="$ISSUE_NUM"
+        break
+      fi
+    done
+
+    if [[ -z "$FORGE_LOCKED_ISSUE" ]]; then
+      echo "[preflight] No unlocked planner issues available — proceeding without lock"
+    else
+      export FORGE_LOCKED_ISSUE
+      echo "[preflight] Locked issue #$FORGE_LOCKED_ISSUE for $WORKSPACE_ID"
+    fi
+  fi
+fi
+
+# ── preflight: skip idle super runs ──────────────────────────
+IS_SUPER=false
+for ctx in "${CONTEXTS[@]}"; do
+  if [[ "$ctx" == *SUPER.md ]]; then
+    IS_SUPER=true
+    break
+  fi
+done
+
+if [[ "$IS_SUPER" == true ]]; then
+  GH_ARGS=(issue list --label "role:super" --state open --json number --jq '.[].number')
+
+  if [[ "$TARGET_REPO" == github.com/* ]]; then
+    GH_REPO="${TARGET_REPO#github.com/}"
+    GH_ARGS+=(--repo "$GH_REPO")
+  fi
+
+  ISSUES=$(gh "${GH_ARGS[@]}" 2>/dev/null || echo "error")
+
+  if [[ "$ISSUES" == "error" ]]; then
+    echo "[preflight] gh issue list failed — proceeding without lock"
+  elif [[ -z "$ISSUES" ]]; then
+    echo "[preflight] No open issues with role:super — proceeding without lock"
+  else
+    # Try to lock one issue
+    FORGE_LOCKED_ISSUE=""
+    for ISSUE_NUM in $ISSUES; do
+      if lock_acquire issue "$ISSUE_NUM" "$WORKSPACE_ID" 2>/dev/null; then
+        FORGE_LOCKED_ISSUE="$ISSUE_NUM"
+        break
+      fi
+    done
+
+    if [[ -z "$FORGE_LOCKED_ISSUE" ]]; then
+      echo "[preflight] No unlocked super issues available — proceeding without lock"
+    else
+      export FORGE_LOCKED_ISSUE
+      echo "[preflight] Locked issue #$FORGE_LOCKED_ISSUE for $WORKSPACE_ID"
+    fi
+  fi
+fi
 
 # ── preflight: Codex binary (direct mode) ────────────────────
 if [[ "$AGENT_RUNTIME" == "codex" ]] && [[ "${USE_INNIES:-false}" != "true" ]]; then
@@ -238,6 +347,11 @@ done
 # ── inject agent identity ─────────────────────────────────────
 if [[ -n "$WORKSPACE_ID" ]]; then
   SYSTEM_PROMPT="AGENT_ID: $WORKSPACE_ID"$'\n\n'"$SYSTEM_PROMPT"
+fi
+
+# ── inject pre-assigned issue ──────────────────────────────────
+if [[ -n "${FORGE_LOCKED_ISSUE:-}" ]]; then
+  SYSTEM_PROMPT="ASSIGNED_ISSUE: $FORGE_LOCKED_ISSUE"$'\n'"$SYSTEM_PROMPT"
 fi
 
 # ── build runtime args ────────────────────────────────────────
