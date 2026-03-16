@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-type AgentStatus = "staged" | "active" | "modified" | "orphan";
+type AgentStatus = "new" | "active" | "modified" | "deleted";
 
 interface Agent {
   id: string;
@@ -90,10 +90,10 @@ function RoleBadge({ role }: { role: string }) {
 }
 
 const statusBadgeConfig: Record<AgentStatus, { label: string; bg: string }> = {
-  staged: { label: "STAGED", bg: "bg-accent-yellow" },
+  new: { label: "NEW", bg: "bg-accent-yellow" },
   active: { label: "ACTIVE", bg: "bg-accent-green" },
   modified: { label: "MODIFIED", bg: "bg-accent-yellow" },
-  orphan: { label: "ORPHAN", bg: "bg-accent-red" },
+  deleted: { label: "DELETED", bg: "bg-accent-red" },
 };
 
 function StatusBadge({ status, agent }: { status: AgentStatus; agent: Agent }) {
@@ -162,7 +162,7 @@ function AgentCard({
   };
 
   const isStarted = feedback === "Started";
-  const isStaged = agent.status === "staged";
+  const isStaged = agent.status === "new";
 
   return (
     <div className="rounded-md bg-surface p-2 border border-border hover:bg-surface-hover transition-colors">
@@ -228,8 +228,8 @@ function AgentCard({
 const statusOrder: Record<AgentStatus, number> = {
   active: 0,
   modified: 1,
-  staged: 2,
-  orphan: 3,
+  new: 2,
+  deleted: 3,
 };
 
 function sortAgentsByStatus(agents: Agent[]): Agent[] {
@@ -529,12 +529,30 @@ export function AgentPanel() {
     }
   };
 
-  const stagedCount = agents.filter(
-    (a) => a.status === "staged" || a.status === "modified"
+  const handleReset = async () => {
+    try {
+      const res = await fetch("/api/agents/reset", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        const parts: string[] = [];
+        if (data.restored?.length) parts.push(`restored ${data.restored.length}`);
+        if (data.removed?.length) parts.push(`removed ${data.removed.length}`);
+        showFeedback(parts.length > 0 ? `Reset: ${parts.join(", ")}` : "Reset (no changes)");
+      } else {
+        showFeedback(`Reset failed: ${data.error ?? "unknown"}`);
+      }
+      fetchAgents();
+    } catch {
+      showFeedback("Reset failed");
+    }
+  };
+
+  const newCount = agents.filter(
+    (a) => a.status === "new" || a.status === "modified"
   ).length;
-  const orphanCount = agents.filter((a) => a.status === "orphan").length;
-  const hasPendingChanges = stagedCount > 0 || orphanCount > 0;
-  const hasStagedAgents = agents.filter((a) => a.status !== "orphan").length > 0;
+  const deletedCount = agents.filter((a) => a.status === "deleted").length;
+  const hasPendingChanges = newCount > 0 || deletedCount > 0;
+  const hasStagedAgents = agents.filter((a) => a.status !== "deleted").length > 0;
 
   return (
     <div className="h-full bg-surface px-3 pb-3 overflow-y-auto flex flex-col">
@@ -576,6 +594,18 @@ export function AgentPanel() {
           }
         >
           {clearConfirming ? "Confirm?" : "Clear"}
+        </button>
+        <button
+          className={`text-xs rounded px-2 py-1 border transition-colors ${
+            hasPendingChanges
+              ? "border-accent-yellow text-accent-yellow hover:bg-accent-yellow/20"
+              : "border-border text-muted-foreground cursor-not-allowed opacity-50"
+          }`}
+          onClick={hasPendingChanges ? handleReset : undefined}
+          disabled={!hasPendingChanges}
+          title={hasPendingChanges ? "Reset config to match applied state" : "No pending changes to reset"}
+        >
+          Reset
         </button>
         {actionFeedback && (
           <span className="text-xs text-accent-cyan ml-auto">{actionFeedback}</span>
