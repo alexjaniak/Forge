@@ -26,6 +26,7 @@ Unified command-line interface for managing agents.
 | `forge status` | Alias for `forge list` |
 | `forge cron apply` | Sync staged agent config to live crontab |
 | `forge logs` | View agent logs (`-f` to follow) |
+| `forge unorphan <id>` | Restore orphaned agent to config |
 | `forge wh` | Start webhook monitor with auto-tunnel |
 
 Install: `pip install -e apps/forge-cli`
