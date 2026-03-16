@@ -9,3 +9,5 @@ agent-kernel/logs/*
 *.egg-info/
 __pycache__/
 apps/webhook-monitor/config.toml
+events.jsonl
+apps/web/events.jsonl

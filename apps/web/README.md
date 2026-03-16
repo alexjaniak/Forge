@@ -56,7 +56,7 @@ Filesystem                          API Routes              Components
 agent-kernel/cron/cron-jobs.json  → GET /api/agents       → AgentPanel
 agent-kernel/cron/cron-state.json → GET /api/agents       → AgentPanel
 agent-kernel/logs/{id}.log        → GET /api/logs/stream  → LogsPanel (SSE)
-events.jsonl                      → GET /api/events       → EventsPanel
+apps/webhook-monitor/events.jsonl → GET /api/events       → EventsPanel
 templates/{type}.json             → POST /api/agents      → (agent creation)
 .worktrees/{id}/.agent.lock       → GET /api/agents       → (running detection)
 ```
@@ -106,7 +106,7 @@ Server-Sent Events endpoint for live log streaming. Uses `fs.watch()` on log fil
 
 ### `GET /api/events?offset={n}`
 
-Returns up to 50 GitHub events from `events.jsonl`, parsed from newline-delimited JSON.
+Returns up to 50 GitHub events from `apps/webhook-monitor/events.jsonl`, parsed from newline-delimited JSON.
 
 ## Environment Variables
 
