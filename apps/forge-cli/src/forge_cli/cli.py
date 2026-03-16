@@ -3,6 +3,7 @@ import click
 from forge_cli.agents import add, rm
 from forge_cli.apply_cmd import apply_cmd
 from forge_cli.clear_cmd import clear_cmd
+from forge_cli.diff_cmd import diff_cmd
 from forge_cli.list_cmd import list_cmd
 from forge_cli.logs import logs
 from forge_cli.reset_cmd import reset_cmd
@@ -19,6 +20,7 @@ def main():
 main.add_command(add)
 main.add_command(apply_cmd, name="apply")
 main.add_command(clear_cmd, name="clear")
+main.add_command(diff_cmd, name="diff")
 main.add_command(logs)
 main.add_command(reset_cmd, name="reset")
 main.add_command(rm)
