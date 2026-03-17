@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import type { CanonicalIssueLabels } from "@/lib/github-labels";
 
 const POLL_INTERVAL = 5000;
 
@@ -41,6 +42,43 @@ function labelColor(name: string): string {
     TYPE_COLORS[name] ??
     "bg-surface-hover text-text"
   );
+}
+
+function chipBorderColor(name: string): string {
+  if (name.startsWith("status:")) {
+    return STATUS_COLORS[name]?.includes("accent-green")
+      ? "border-accent-green/50"
+      : STATUS_COLORS[name]?.includes("accent-blue")
+        ? "border-accent-blue/50"
+        : STATUS_COLORS[name]?.includes("accent-magenta")
+          ? "border-accent-magenta/50"
+          : STATUS_COLORS[name]?.includes("accent-red")
+            ? "border-accent-red/50"
+            : "border-accent-yellow/50";
+  }
+
+  if (name.startsWith("role:")) {
+    return ROLE_COLORS[name]?.includes("accent-green")
+      ? "border-accent-green/50"
+      : ROLE_COLORS[name]?.includes("accent-magenta")
+        ? "border-accent-magenta/50"
+        : ROLE_COLORS[name]?.includes("accent-yellow")
+          ? "border-accent-yellow/50"
+          : "border-accent-orange/50";
+  }
+
+  if (name === "type:epic") return "border-accent-cyan/50";
+  if (name === "type:fix") return "border-accent-red/50";
+
+  return "border-border";
+}
+
+function filterChipClass(name: string, active: boolean): string {
+  if (!active) {
+    return "text-muted-foreground border border-border";
+  }
+
+  return `${labelColor(name)} border ${chipBorderColor(name)}`;
 }
 
 function playAdminAlert() {
@@ -121,10 +159,16 @@ function IssueCard({ issue, repo }: { issue: Issue; repo: string }) {
 
 export function IssuesPanel() {
   const [issues, setIssues] = useState<Issue[]>([]);
+  const [labels, setLabels] = useState<CanonicalIssueLabels>({
+    status: [],
+    role: [],
+    type: [],
+  });
   const [repo, setRepo] = useState("");
   const [error, setError] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [roleFilter, setRoleFilter] = useState<Set<string>>(new Set());
+  const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set());
   const [muted, setMuted] = useState(() => {
     try { return localStorage.getItem("forge-admin-alert-muted") === "true"; } catch { return false; }
   });
@@ -134,40 +178,55 @@ export function IssuesPanel() {
   const eventSourceRef = useRef<EventSource | null>(null);
   const fallbackTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const applySnapshot = useCallback((data: { issues?: Issue[]; repo?: string; error?: string }) => {
-    if (data.error) setError(data.error);
-    else setError("");
+  useEffect(() => {
+    mutedRef.current = muted;
+  }, [muted]);
 
-    const newIssues = data.issues ?? [];
-    setIssues(newIssues);
-    if (typeof data.repo === "string") {
-      setRepo(data.repo);
-    }
+  const applySnapshot = useCallback(
+    (data: {
+      issues?: Issue[];
+      labels?: CanonicalIssueLabels;
+      repo?: string;
+      error?: string;
+    }) => {
+      if (data.error) setError(data.error);
+      else setError("");
 
-    if (initialLoadRef.current) {
-      initialLoadRef.current = false;
-      prevIssuesRef.current = newIssues;
-      return;
-    }
-
-    if (!mutedRef.current) {
-      const prevAdminIds = new Set(
-        prevIssuesRef.current
-          .filter((issue) => issue.labels.some((label) => label.name === "role:admin"))
-          .map((issue) => issue.number)
-      );
-      const hasNewAdminIssue = newIssues.some(
-        (issue) =>
-          issue.labels.some((label) => label.name === "role:admin") &&
-          !prevAdminIds.has(issue.number)
-      );
-      if (hasNewAdminIssue) {
-        playAdminAlert();
+      const newIssues = data.issues ?? [];
+      setIssues(newIssues);
+      if (data.labels) setLabels(data.labels);
+      if (typeof data.repo === "string") {
+        setRepo(data.repo);
       }
-    }
 
-    prevIssuesRef.current = newIssues;
-  }, []);
+      if (initialLoadRef.current) {
+        initialLoadRef.current = false;
+        prevIssuesRef.current = newIssues;
+        return;
+      }
+
+      if (!mutedRef.current) {
+        const prevAdminIds = new Set(
+          prevIssuesRef.current
+            .filter((issue) =>
+              issue.labels.some((label) => label.name === "role:admin")
+            )
+            .map((issue) => issue.number)
+        );
+        const hasNewAdminIssue = newIssues.some(
+          (issue) =>
+            issue.labels.some((label) => label.name === "role:admin") &&
+            !prevAdminIds.has(issue.number)
+        );
+        if (hasNewAdminIssue) {
+          playAdminAlert();
+        }
+      }
+
+      prevIssuesRef.current = newIssues;
+    },
+    []
+  );
 
   const fetchIssues = useCallback(async () => {
     try {
@@ -228,28 +287,8 @@ export function IssuesPanel() {
   }, [applySnapshot, fetchIssues, startFallbackPolling, stopFallbackPolling]);
 
   useEffect(() => {
-    mutedRef.current = muted;
-  }, [muted]);
-
-  useEffect(() => {
     try { localStorage.setItem("forge-admin-alert-muted", String(muted)); } catch {}
   }, [muted]);
-
-  // Collect unique status and role labels present in data
-  const statusLabels = [
-    ...new Set(
-      issues.flatMap((i) =>
-        i.labels.filter((l) => l.name.startsWith("status:")).map((l) => l.name)
-      )
-    ),
-  ].sort();
-  const roleLabels = [
-    ...new Set(
-      issues.flatMap((i) =>
-        i.labels.filter((l) => l.name.startsWith("role:")).map((l) => l.name)
-      )
-    ),
-  ].sort();
 
   const toggleFilter = (
     set: Set<string>,
@@ -275,6 +314,12 @@ export function IssuesPanel() {
       );
       if (!has) return false;
     }
+    if (typeFilter.size > 0) {
+      const has = issue.labels.some(
+        (l) => l.name.startsWith("type:") && typeFilter.has(l.name)
+      );
+      if (!has) return false;
+    }
     return true;
   });
 
@@ -293,30 +338,31 @@ export function IssuesPanel() {
         >
           <BellIcon muted={muted} />
         </button>
-        {statusLabels.map((s) => (
+        {labels.status.map((s) => (
           <button
             key={s}
             onClick={() => toggleFilter(statusFilter, setStatusFilter, s)}
-            className={`text-xs px-2 py-0.5 rounded-full cursor-pointer ${
-              statusFilter.has(s)
-                ? "bg-accent-blue/20 text-accent-blue border border-accent-blue/50"
-                : "text-muted-foreground border border-border"
-            }`}
+            className={`text-xs px-2 py-0.5 rounded-full cursor-pointer ${filterChipClass(s, statusFilter.has(s))}`}
           >
             {s}
           </button>
         ))}
-        {roleLabels.map((r) => (
+        {labels.role.map((r) => (
           <button
             key={r}
             onClick={() => toggleFilter(roleFilter, setRoleFilter, r)}
-            className={`text-xs px-2 py-0.5 rounded-full cursor-pointer ${
-              roleFilter.has(r)
-                ? "bg-accent-blue/20 text-accent-blue border border-accent-blue/50"
-                : "text-muted-foreground border border-border"
-            }`}
+            className={`text-xs px-2 py-0.5 rounded-full cursor-pointer ${filterChipClass(r, roleFilter.has(r))}`}
           >
             {r}
+          </button>
+        ))}
+        {labels.type.map((t) => (
+          <button
+            key={t}
+            onClick={() => toggleFilter(typeFilter, setTypeFilter, t)}
+            className={`text-xs px-2 py-0.5 rounded-full cursor-pointer ${filterChipClass(t, typeFilter.has(t))}`}
+          >
+            {t}
           </button>
         ))}
       </div>

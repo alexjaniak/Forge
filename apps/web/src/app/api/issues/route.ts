@@ -6,6 +6,6 @@ export async function GET() {
     return NextResponse.json(await getIssueSnapshot());
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ issues: [], repo: "", error: msg });
+    return NextResponse.json({ issues: [], labels: { status: [], role: [], type: [] }, repo: "", error: msg });
   }
 }
