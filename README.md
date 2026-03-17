@@ -29,9 +29,60 @@ Unified command-line interface for managing agents.
 | `forge status` | Alias for `forge list` |
 | `forge logs` | View agent logs (`-f` to follow) |
 | `forge ui` | Start the web dashboard |
+| `forge locks list` | Show all held issue/PR locks across repos |
+| `forge locks clear` | Clear stale locks (`--all` for all, `--all --force` to skip confirm) |
 | `forge wh` | Start webhook monitor with auto-tunnel |
 
-Install: `pip install -e apps/forge-cli`
+Run from the repo workspace: `uv run forge --help`
+
+## Lock system
+
+File-based locking prevents multiple agents from claiming the same GitHub issue or PR simultaneously. Locks use atomic `mkdir` operations — no external dependencies required.
+
+**How it works:**
+
+1. **Preflight** — before an agent run, `run.sh` queries available `status:ready-for-work` issues and attempts to lock one
+2. **Atomic acquire** — `mkdir` is used as an atomic lock primitive; if the directory already exists, the lock is held
+3. **Stale detection** — if the holding PID is no longer alive, the lock is automatically reclaimed
+4. **Pre-assignment** — the locked issue number is exported as `FORGE_LOCKED_ISSUE` so the agent knows which issue to work on
+5. **Cleanup** — locks are released on agent exit via a trap handler; stale locks can be cleared manually
+
+**Lock directory layout:**
+
+```
+<repo-dir>/locks/
+  issues/<number>.lock/info.json
+  prs/<number>.lock/info.json
+```
+
+Each `info.json` contains `{"agent": "<id>", "pid": <pid>, "claimed_at": "<ISO timestamp>"}`.
+
+**Environment variables:**
+
+| Variable | Description |
+|----------|-------------|
+| `FORGE_LOCKED_ISSUE` | Issue number locked for this agent run (set by preflight) |
+| `WORK_REPO_DIR` | Repository directory where locks are stored |
+
+**CLI commands:**
+
+| Command | Description |
+|---------|-------------|
+| `forge locks list` | Show all held locks across repos with agent, PID, age, and status |
+| `forge locks clear` | Clear stale locks (dead PIDs) |
+| `forge locks clear --all` | Clear all locks (prompts for confirmation) |
+| `forge locks clear --all --force` | Clear all locks without confirmation |
+
+**Shell library** (`agent-kernel/locks.sh`):
+
+| Function | Description |
+|----------|-------------|
+| `lock_acquire <type> <number> <agent_id>` | Acquire a lock (type: `issue` or `pr`) |
+| `lock_release <type> <number>` | Release a lock |
+| `lock_check <type> <number>` | Check if locked (exit 0=locked, 1=free) |
+| `lock_list <repo_dir>` | List all held locks |
+| `lock_clear_stale <repo_dir>` | Remove locks with dead PIDs |
+| `lock_clear_all <repo_dir>` | Force-remove all locks |
 
 ## Project structure
 
@@ -53,16 +104,22 @@ templates/       Agent configuration templates (worker.json, planner.json, super
 ```bash
 git clone https://github.com/alexjaniak/Forge.git
 cd Forge
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ./install.sh
 ```
 
-The install script checks prerequisites, installs dependencies, and generates config files.
+If you prefer another install method, see the official uv installation guide: https://docs.astral.sh/uv/getting-started/installation/
+
+If `uv` is not available immediately after installation, restart your shell or source your shell profile before running `./install.sh`.
+
+The install script checks prerequisites, syncs the Python workspace with `uv`, installs dependencies, and generates config files.
 
 ### Manual setup
 
 If you prefer manual setup:
-1. `pip install -e apps/forge-cli` — Install the Forge CLI
-2. `pip install -e apps/webhook-monitor` — Install the webhook server
+1. `curl -LsSf https://astral.sh/uv/install.sh | sh` — Install `uv`
+2. `uv sync --all-packages` — Sync the Forge Python workspace
 3. `cd apps/web && npm install` — Install dashboard dependencies
 4. `cp agent-kernel/.env.example agent-kernel/.env` — Configure credentials
 5. `cp apps/webhook-monitor/config.example.toml apps/webhook-monitor/config.toml` — Configure webhooks
+6. `uv run forge --help` — Verify the Forge CLI is available
