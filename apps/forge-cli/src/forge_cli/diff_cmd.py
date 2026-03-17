@@ -5,6 +5,7 @@ import os
 
 import click
 
+from forge_cli.cron_normalization import normalize_optional_cron_field
 from forge_cli.paths import _get_manage, cron_jobs_path, load_cron_jobs
 
 DIFF_FIELDS = ["interval", "prompt", "contexts", "agentic", "workspace", "repo", "runtime", "model", "enabled"]
@@ -63,7 +64,10 @@ def diff_cmd():
         for field in DIFF_FIELDS:
             staged_val = _get_field(staged_jobs[agent_id], field)
             applied_val = _get_field(applied_jobs[agent_id], field)
-            if staged_val != applied_val:
+            if (
+                normalize_optional_cron_field(field, staged_val)
+                != normalize_optional_cron_field(field, applied_val)
+            ):
                 changes.append((field, applied_val, staged_val))
         if changes:
             modified[agent_id] = changes

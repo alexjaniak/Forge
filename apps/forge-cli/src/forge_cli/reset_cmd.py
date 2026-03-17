@@ -5,6 +5,7 @@ import os
 
 import click
 
+from forge_cli.cron_normalization import normalize_optional_cron_field
 from forge_cli.paths import _get_manage, cron_jobs_path, load_cron_jobs, save_cron_jobs
 
 # Fields to copy from state entries back into config job entries.
@@ -138,11 +139,8 @@ def _reset_single(agent_id, applied_jobs, staged_jobs, config, jobs_path, yes):
 def _jobs_match(staged_job, applied_entry):
     """Check if a staged job matches the applied state entry."""
     for field in _CONFIG_FIELDS:
-        staged_val = staged_job.get(field)
-        applied_val = applied_entry.get(field)
-        # Normalize missing values
-        if staged_val is None and applied_val is None:
-            continue
+        staged_val = normalize_optional_cron_field(field, staged_job.get(field))
+        applied_val = normalize_optional_cron_field(field, applied_entry.get(field))
         if staged_val != applied_val:
             return False
     return True
