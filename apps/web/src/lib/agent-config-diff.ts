@@ -25,6 +25,26 @@ export const COMPARE_FIELDS = [
   "model",
 ] as const;
 
+const OPTIONAL_FIELD_DEFAULTS = {
+  repo: "",
+  runtime: "claude",
+  model: "",
+} as const;
+
+function normalizeOptionalField(
+  field: keyof AgentConfigFields,
+  value: unknown
+): unknown {
+  if (
+    Object.prototype.hasOwnProperty.call(OPTIONAL_FIELD_DEFAULTS, field) &&
+    value === undefined
+  ) {
+    return OPTIONAL_FIELD_DEFAULTS[field as keyof typeof OPTIONAL_FIELD_DEFAULTS];
+  }
+
+  return value;
+}
+
 function fieldsEqual(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
@@ -36,8 +56,8 @@ export function diffAgentConfig(
   const changes: Record<string, FieldChange> = {};
 
   for (const field of COMPARE_FIELDS) {
-    const stagedVal = staged[field];
-    const appliedVal = applied[field];
+    const stagedVal = normalizeOptionalField(field, staged[field]);
+    const appliedVal = normalizeOptionalField(field, applied[field]);
     if (!fieldsEqual(stagedVal, appliedVal)) {
       changes[field] = { from: appliedVal, to: stagedVal };
     }
