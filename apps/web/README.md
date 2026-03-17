@@ -114,7 +114,7 @@ Returns up to 50 GitHub events from `apps/webhook-monitor/events.jsonl`, parsed 
 
 ### `GET /api/issues`
 
-Returns open GitHub issues via `gh issue list`. Response cached server-side for 5s. Returns `{ issues, repo }`.
+Returns open GitHub issues via `gh issue list`. Response cached server-side for 5s. Returns `{ issues, labels, repo }`, where `labels` is the canonical `status`, `role`, and `type` label set parsed from `contexts/LABELS.md` so the Issues tab can render filter chips even when a label has zero open matches.
 
 ## Environment Variables
 

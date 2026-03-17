@@ -1,17 +1,30 @@
 import { execSync } from "child_process";
 import { NextResponse } from "next/server";
+import { readCanonicalIssueLabels } from "@/lib/github-labels";
 import { getForgeRoot } from "@/lib/paths";
 
-let cache: { issues: unknown[]; repo: string; ts: number } | null = null;
+let cache:
+  | {
+      issues: unknown[];
+      labels: ReturnType<typeof readCanonicalIssueLabels>;
+      repo: string;
+      ts: number;
+    }
+  | null = null;
 const TTL = 5000;
 
 export async function GET() {
   const now = Date.now();
   if (cache && now - cache.ts < TTL) {
-    return NextResponse.json({ issues: cache.issues, repo: cache.repo });
+    return NextResponse.json({
+      issues: cache.issues,
+      labels: cache.labels,
+      repo: cache.repo,
+    });
   }
 
   const cwd = getForgeRoot();
+  const labels = readCanonicalIssueLabels();
 
   let issues: unknown[] = [];
   let repo = "";
@@ -24,7 +37,7 @@ export async function GET() {
     issues = JSON.parse(raw);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    return NextResponse.json({ issues: [], repo: "", error: msg });
+    return NextResponse.json({ issues: [], labels, repo: "", error: msg });
   }
 
   try {
@@ -36,6 +49,6 @@ export async function GET() {
     // non-fatal — links just won't work
   }
 
-  cache = { issues, repo, ts: now };
-  return NextResponse.json({ issues, repo });
+  cache = { issues, labels, repo, ts: now };
+  return NextResponse.json({ issues, labels, repo });
 }
