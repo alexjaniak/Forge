@@ -9,6 +9,14 @@ import { ResizableLayout } from "@/components/resizable-layout";
 
 type Tab = "logs" | "events" | "issues";
 
+const VALID_TABS: Tab[] = ["logs", "events", "issues"];
+
+function getInitialTab(): Tab {
+  if (typeof window === "undefined") return "logs";
+  const hash = window.location.hash.replace("#", "");
+  return VALID_TABS.includes(hash as Tab) ? (hash as Tab) : "logs";
+}
+
 function TabButton({
   label,
   active,
@@ -33,7 +41,12 @@ function TabButton({
 }
 
 function RightPanel() {
-  const [activeTab, setActiveTab] = useState<Tab>("logs");
+  const [activeTab, setActiveTab] = useState<Tab>(getInitialTab);
+
+  const switchTab = (tab: Tab) => {
+    setActiveTab(tab);
+    window.location.hash = tab;
+  };
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -42,17 +55,17 @@ function RightPanel() {
         <TabButton
           label="Logs"
           active={activeTab === "logs"}
-          onClick={() => setActiveTab("logs")}
+          onClick={() => switchTab("logs")}
         />
         <TabButton
           label="Events"
           active={activeTab === "events"}
-          onClick={() => setActiveTab("events")}
+          onClick={() => switchTab("events")}
         />
         <TabButton
           label="Issues"
           active={activeTab === "issues"}
-          onClick={() => setActiveTab("issues")}
+          onClick={() => switchTab("issues")}
         />
       </div>
 
