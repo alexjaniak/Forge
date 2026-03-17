@@ -232,19 +232,45 @@ def add_job_to_crontab(crontab, job_id, cron_expr, command):
     return entry
 
 
-def _workspace_lock_path(job_id):
-    return os.path.join(REPO_DIR, ".worktrees", job_id, ".agent.lock")
+def _work_repo_dir(repo=None):
+    if not repo:
+        return REPO_DIR
+    if os.path.isabs(repo):
+        return os.path.normpath(repo)
+    if repo.startswith("github.com/"):
+        return os.path.join(REPO_DIR, ".repos", repo)
+    return os.path.normpath(repo)
 
 
-def _list_workspace_ids():
-    worktrees_dir = os.path.join(REPO_DIR, ".worktrees")
-    if not os.path.isdir(worktrees_dir):
+def _workspace_lock_path(job_id, repo=None):
+    return os.path.join(_work_repo_dir(repo), ".worktrees", job_id, ".agent.lock")
+
+
+def _normalize_repo(repo):
+    if not repo:
+        return ""
+    if os.path.isabs(repo):
+        return os.path.normpath(repo)
+    return repo
+
+
+def _load_managed_jobs(agent_id=None):
+    try:
+        with open(JOBS_FILE) as f:
+            config = json.load(f)
+    except (OSError, json.JSONDecodeError):
         return []
-    job_ids = []
-    for entry in os.listdir(worktrees_dir):
-        if os.path.isfile(_workspace_lock_path(entry)):
-            job_ids.append(entry)
-    return sorted(job_ids)
+
+    jobs = []
+    for job in config.get("jobs", []):
+        if not job.get("enabled", True):
+            continue
+        if not job.get("workspace", False):
+            continue
+        if agent_id and job.get("id") != agent_id:
+            continue
+        jobs.append(job)
+    return jobs
 
 
 def _read_lock_pid(lock_path):
@@ -312,7 +338,7 @@ def _parse_run_command(command):
     }
 
 
-def _matches_managed_run(job_id, pid, command):
+def _matches_managed_run(job, pid, command):
     parsed = _parse_run_command(command)
     if not parsed:
         return None
@@ -320,28 +346,29 @@ def _matches_managed_run(job_id, pid, command):
     run_path = parsed["run_path"]
     if os.path.isabs(run_path) and os.path.normpath(run_path) != os.path.join(REPO_DIR, "agent-kernel", "run.sh"):
         return None
-    if parsed["workspace_id"] != job_id:
+    if parsed["workspace_id"] != job["id"]:
+        return None
+    if _normalize_repo(parsed["repo"]) != _normalize_repo(job.get("repo")):
         return None
 
     return {
-        "agent_id": job_id,
+        "agent_id": job["id"],
         "pid": pid,
         "command": command,
     }
 
 
 def find_managed_runs(agent_id=None):
-    job_ids = [agent_id] if agent_id else _list_workspace_ids()
     runs = []
-    for job_id in job_ids:
-        lock_path = _workspace_lock_path(job_id)
+    for job in _load_managed_jobs(agent_id):
+        lock_path = _workspace_lock_path(job["id"], job.get("repo"))
         pid = _read_lock_pid(lock_path)
         if pid is None:
             continue
         command = _read_process_command(pid)
         if not command:
             continue
-        run = _matches_managed_run(job_id, pid, command)
+        run = _matches_managed_run(job, pid, command)
         if run:
             runs.append(run)
     return runs

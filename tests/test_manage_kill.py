@@ -15,6 +15,17 @@ spec.loader.exec_module(manage)
 
 
 class ManageKillTests(unittest.TestCase):
+    def test_workspace_lock_path_uses_repo_backed_and_self_repo_layouts(self):
+        with patch.object(manage, "REPO_DIR", "/tmp/forge"):
+            self.assertEqual(
+                manage._workspace_lock_path("worker-02", "github.com/alexjaniak/Forge"),
+                "/tmp/forge/.repos/github.com/alexjaniak/Forge/.worktrees/worker-02/.agent.lock",
+            )
+            self.assertEqual(
+                manage._workspace_lock_path("worker-03"),
+                "/tmp/forge/.worktrees/worker-03/.agent.lock",
+            )
+
     def test_parse_run_command_extracts_workspace_and_repo(self):
         command = (
             "/bin/bash /tmp/forge/agent-kernel/run.sh --agentic "
@@ -27,24 +38,36 @@ class ManageKillTests(unittest.TestCase):
         self.assertEqual(parsed["workspace_id"], "worker-02")
         self.assertEqual(parsed["repo"], "github.com/alexjaniak/Forge")
 
-    def test_find_managed_runs_filters_out_stale_and_non_matching_processes(self):
+    def test_find_managed_runs_resolves_repo_backed_and_self_repo_lockfiles(self):
+        jobs = [
+            {"id": "worker-02", "repo": "github.com/alexjaniak/Forge", "workspace": True},
+            {"id": "worker-03", "repo": "", "workspace": True},
+            {"id": "worker-04", "repo": "github.com/alexjaniak/Other", "workspace": True},
+        ]
+
         with patch.object(manage, "REPO_DIR", "/tmp/forge"), patch.object(
-            manage, "_list_workspace_ids", return_value=["worker-02", "worker-03", "worker-04"]
+            manage, "_load_managed_jobs", return_value=jobs
         ), patch.object(
             manage,
             "_read_lock_pid",
             side_effect=lambda path: {
-                "/tmp/forge/.worktrees/worker-02/.agent.lock": 101,
+                "/tmp/forge/.repos/github.com/alexjaniak/Forge/.worktrees/worker-02/.agent.lock": 101,
                 "/tmp/forge/.worktrees/worker-03/.agent.lock": 102,
-                "/tmp/forge/.worktrees/worker-04/.agent.lock": 103,
+                "/tmp/forge/.repos/github.com/alexjaniak/Other/.worktrees/worker-04/.agent.lock": 103,
             }.get(path),
         ), patch.object(
             manage,
             "_read_process_command",
             side_effect=lambda pid: {
-                101: "/bin/bash /tmp/forge/agent-kernel/run.sh --workspace worker-02 'prompt'",
-                102: "/bin/bash /tmp/other/agent-kernel/run.sh --workspace worker-03 'prompt'",
-                103: None,
+                101: (
+                    "/bin/bash /tmp/forge/agent-kernel/run.sh --workspace worker-02 "
+                    "--repo github.com/alexjaniak/Forge 'prompt'"
+                ),
+                102: "/bin/bash /tmp/forge/agent-kernel/run.sh --workspace worker-03 'prompt'",
+                103: (
+                    "/bin/bash /tmp/forge/agent-kernel/run.sh --workspace worker-04 "
+                    "--repo github.com/alexjaniak/Wrong 'prompt'"
+                ),
             }.get(pid),
         ):
             runs = manage.find_managed_runs()
@@ -55,10 +78,28 @@ class ManageKillTests(unittest.TestCase):
                 {
                     "agent_id": "worker-02",
                     "pid": 101,
-                    "command": "/bin/bash /tmp/forge/agent-kernel/run.sh --workspace worker-02 'prompt'",
-                }
+                    "command": (
+                        "/bin/bash /tmp/forge/agent-kernel/run.sh --workspace worker-02 "
+                        "--repo github.com/alexjaniak/Forge 'prompt'"
+                    ),
+                },
+                {
+                    "agent_id": "worker-03",
+                    "pid": 102,
+                    "command": "/bin/bash /tmp/forge/agent-kernel/run.sh --workspace worker-03 'prompt'",
+                },
             ],
         )
+
+    def test_find_managed_runs_only_checks_jobs_from_cron_config(self):
+        with patch.object(manage, "_load_managed_jobs", return_value=[]), patch.object(
+            manage, "_read_lock_pid"
+        ) as read_lock_pid, patch.object(manage, "_read_process_command") as read_process_command:
+            runs = manage.find_managed_runs()
+
+        self.assertEqual(runs, [])
+        read_lock_pid.assert_not_called()
+        read_process_command.assert_not_called()
 
     def test_kill_managed_runs_returns_killed_runs(self):
         runs = [
