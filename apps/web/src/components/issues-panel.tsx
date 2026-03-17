@@ -275,7 +275,7 @@ export function IssuesPanel() {
       )}
 
       {/* Issue list */}
-      <div className="dashboard-scrollbar flex-1 overflow-y-auto px-3 pb-3">
+      <div className="dashboard-scrollbar [--dashboard-scrollbar-surface:var(--background)] flex-1 overflow-y-auto px-3 pb-3">
         {filtered.length === 0 && !error ? (
           <p className="text-muted-foreground text-sm pt-3">No issues found.</p>
         ) : (

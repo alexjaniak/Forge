@@ -391,7 +391,7 @@ export function LogsPanel() {
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="dashboard-scrollbar flex-1 overflow-y-auto p-4 space-y-2"
+        className="dashboard-scrollbar [--dashboard-scrollbar-surface:var(--background)] flex-1 overflow-y-auto p-4 space-y-2"
       >
         {displayBlocks.length === 0 ? (
           <div className="flex items-center justify-center h-full">
