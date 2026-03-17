@@ -154,7 +154,7 @@ export function EventsPanel() {
         <div
           ref={containerRef}
           onScroll={handleScroll}
-          className="flex flex-col gap-2 flex-1 overflow-y-auto min-h-0"
+          className="dashboard-scrollbar flex flex-col gap-2 flex-1 overflow-y-auto min-h-0"
         >
           {events.map((event, i) => (
             <EventCard key={`${event.timestamp}-${i}`} event={event} />

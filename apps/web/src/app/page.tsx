@@ -38,7 +38,7 @@ function RightPanel() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Tab bar */}
-      <div className="flex items-center gap-1 px-4 py-0 bg-surface border-b border-border shrink-0">
+      <div className="flex items-center gap-1 px-4 py-1 bg-surface border-b border-border shrink-0">
         <TabButton
           label="Logs"
           active={activeTab === "logs"}

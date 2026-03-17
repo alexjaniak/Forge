@@ -119,3 +119,29 @@
     @apply font-mono;
   }
 }
+
+@layer utilities {
+  .dashboard-scrollbar {
+    --dashboard-scrollbar-surface: var(--surface);
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .dashboard-scrollbar::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  .dashboard-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .dashboard-scrollbar::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border: 2px solid var(--dashboard-scrollbar-surface);
+    border-radius: 9999px;
+  }
+
+  .dashboard-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: var(--muted-foreground);
+  }
+}

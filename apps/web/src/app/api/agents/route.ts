@@ -72,9 +72,9 @@ function isProcessAlive(pid: number): boolean {
   }
 }
 
-function getWorktreeBranch(agentId: string): string | null {
+function getWorktreeBranch(agentId: string, repo?: string): string | null {
   try {
-    const wtPath = worktreePath(agentId);
+    const wtPath = worktreePath(agentId, repo);
     const dotGit = fs.readFileSync(path.join(wtPath, ".git"), "utf-8").trim();
     // Format: "gitdir: /path/to/.git/worktrees/<name>"
     const gitdir = dotGit.replace("gitdir: ", "");
@@ -105,7 +105,7 @@ function buildAgentFromJob(
 
   let running = false;
   try {
-    const lockContent = fs.readFileSync(lockFilePath(job.id), "utf-8").trim();
+    const lockContent = fs.readFileSync(lockFilePath(job.id, job.repo), "utf-8").trim();
     const pid = parseInt(lockContent, 10);
     if (!isNaN(pid)) {
       running = isProcessAlive(pid);
@@ -127,7 +127,7 @@ function buildAgentFromJob(
   return {
     id: job.id,
     role: inferRole(job.id),
-    branch: getWorktreeBranch(job.id),
+    branch: getWorktreeBranch(job.id, job.repo),
     interval: job.interval,
     intervalSeconds,
     enabled: job.enabled !== false,
