@@ -187,38 +187,28 @@ function AgentCard({
         </button>
       </div>
 
-      {agent.branch && (
-        <div className="text-sm text-muted-foreground ml-4 mb-1 truncate" title={agent.branch}>
-          {agent.branch}
-        </div>
-      )}
+      <div className="text-sm text-muted-foreground ml-4 mb-1 truncate" title={agent.branch ?? undefined}>
+        {agent.branch ?? "\u2014"}
+      </div>
 
-      <div className="flex items-center gap-1.5 text-sm text-text ml-4 mb-2">
+      <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-sm text-text ml-4 mb-2">
         <span className="text-muted-foreground">every</span>
-        <span title="Interval">{agent.interval}</span>
-        {agent.status === "modified" && agent.stagedInterval && (
-          <span className="text-accent-yellow" title="Pending interval change">
-            → {agent.stagedInterval}
-          </span>
-        )}
-        {agent.lastRun && (
-          <>
-            <span className="text-muted-foreground">·</span>
-            <span className="text-muted-foreground">ran</span>
-            <span title={`Last run: ${agent.lastRun}`}>
-              {relativeTime(agent.lastRun)}
+        <span>
+          <span title="Interval">{agent.interval}</span>
+          {agent.status === "modified" && agent.stagedInterval && (
+            <span className="text-accent-yellow ml-1" title="Pending interval change">
+              → {agent.stagedInterval}
             </span>
-          </>
-        )}
-        {agent.nextRun && (
-          <>
-            <span className="text-muted-foreground">·</span>
-            <span className="text-muted-foreground">next</span>
-            <span className="text-accent-cyan" title={`Next run: ${agent.nextRun}`}>
-              {countdown(agent.nextRun)}
-            </span>
-          </>
-        )}
+          )}
+        </span>
+        <span className="text-muted-foreground">ran</span>
+        <span title={agent.lastRun ? `Last run: ${agent.lastRun}` : undefined}>
+          {agent.lastRun ? relativeTime(agent.lastRun) : "\u2014"}
+        </span>
+        <span className="text-muted-foreground">next</span>
+        <span className={agent.nextRun ? "text-accent-cyan" : ""} title={agent.nextRun ? `Next run: ${agent.nextRun}` : undefined}>
+          {agent.nextRun ? countdown(agent.nextRun) : "\u2014"}
+        </span>
       </div>
 
       <div className="flex justify-end mr-1">
