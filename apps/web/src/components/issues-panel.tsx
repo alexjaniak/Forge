@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
+const POLL_INTERVAL = 5000;
+
 interface Issue {
   number: number;
   title: string;
@@ -128,54 +130,106 @@ export function IssuesPanel() {
   });
   const prevIssuesRef = useRef<Issue[]>([]);
   const initialLoadRef = useRef(true);
+  const mutedRef = useRef<boolean>(muted);
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const fallbackTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const mutedRef = useRef(muted);
-  mutedRef.current = muted;
+  const applySnapshot = useCallback((data: { issues?: Issue[]; repo?: string; error?: string }) => {
+    if (data.error) setError(data.error);
+    else setError("");
+
+    const newIssues = data.issues ?? [];
+    setIssues(newIssues);
+    if (typeof data.repo === "string") {
+      setRepo(data.repo);
+    }
+
+    if (initialLoadRef.current) {
+      initialLoadRef.current = false;
+      prevIssuesRef.current = newIssues;
+      return;
+    }
+
+    if (!mutedRef.current) {
+      const prevAdminIds = new Set(
+        prevIssuesRef.current
+          .filter((issue) => issue.labels.some((label) => label.name === "role:admin"))
+          .map((issue) => issue.number)
+      );
+      const hasNewAdminIssue = newIssues.some(
+        (issue) =>
+          issue.labels.some((label) => label.name === "role:admin") &&
+          !prevAdminIds.has(issue.number)
+      );
+      if (hasNewAdminIssue) {
+        playAdminAlert();
+      }
+    }
+
+    prevIssuesRef.current = newIssues;
+  }, []);
 
   const fetchIssues = useCallback(async () => {
     try {
       const res = await fetch("/api/issues");
       const data = await res.json();
-      if (data.error) setError(data.error);
-      else setError("");
-      const newIssues: Issue[] = data.issues ?? [];
-      setIssues(newIssues);
-      if (data.repo) setRepo(data.repo);
-
-      // Skip alert on initial load
-      if (initialLoadRef.current) {
-        initialLoadRef.current = false;
-        prevIssuesRef.current = newIssues;
-        return;
-      }
-
-      // Detect newly-added role:admin labels
-      if (!mutedRef.current) {
-        const prevAdminIds = new Set(
-          prevIssuesRef.current
-            .filter((i) => i.labels.some((l) => l.name === "role:admin"))
-            .map((i) => i.number)
-        );
-        const newAdminIssues = newIssues.filter(
-          (i) =>
-            i.labels.some((l) => l.name === "role:admin") &&
-            !prevAdminIds.has(i.number)
-        );
-        if (newAdminIssues.length > 0) {
-          playAdminAlert();
-        }
-      }
-      prevIssuesRef.current = newIssues;
+      applySnapshot(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Fetch failed");
+    }
+  }, [applySnapshot]);
+
+  const startFallbackPolling = useCallback(() => {
+    if (fallbackTimerRef.current) return;
+    fallbackTimerRef.current = setInterval(fetchIssues, POLL_INTERVAL);
+  }, [fetchIssues]);
+
+  const stopFallbackPolling = useCallback(() => {
+    if (fallbackTimerRef.current) {
+      clearInterval(fallbackTimerRef.current);
+      fallbackTimerRef.current = null;
     }
   }, []);
 
   useEffect(() => {
-    fetchIssues();
-    const id = setInterval(fetchIssues, 5000);
-    return () => clearInterval(id);
-  }, [fetchIssues]);
+    const initialFetchId = window.setTimeout(() => {
+      void fetchIssues();
+    }, 0);
+
+    const es = new EventSource("/api/issues/stream");
+    eventSourceRef.current = es;
+
+    const handleSnapshot = (event: MessageEvent<string>) => {
+      try {
+        applySnapshot(JSON.parse(event.data));
+      } catch {
+        setError("Invalid issue stream payload");
+      }
+    };
+
+    es.onmessage = handleSnapshot;
+    es.addEventListener("snapshot", handleSnapshot as EventListener);
+
+    es.onerror = () => {
+      startFallbackPolling();
+    };
+
+    es.onopen = () => {
+      stopFallbackPolling();
+    };
+
+    return () => {
+      window.clearTimeout(initialFetchId);
+      es.removeEventListener("snapshot", handleSnapshot as EventListener);
+      es.close();
+      eventSourceRef.current = null;
+      stopFallbackPolling();
+    };
+  }, [applySnapshot, fetchIssues, startFallbackPolling, stopFallbackPolling]);
+
+  useEffect(() => {
+    mutedRef.current = muted;
+  }, [muted]);
 
   useEffect(() => {
     try { localStorage.setItem("forge-admin-alert-muted", String(muted)); } catch {}
