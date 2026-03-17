@@ -5,10 +5,16 @@ Agent orchestration CLI for Forge. Manage agents, cron jobs, webhooks, and logs 
 ## Installation
 
 ```bash
-pip install -e apps/forge-cli
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv sync --all-packages
+uv run forge --help
 ```
 
-Requires Python 3.11+. Dependencies: `click>=8.0`, `forge-webhook>=0.1.0`.
+If you prefer another install method for `uv`, see: https://docs.astral.sh/uv/getting-started/installation/
+
+If `uv` is not on `PATH` yet after installation, restart your shell or source your shell profile.
+
+Run Forge commands from the repo root with `uv run forge ...`. Requires Python 3.11+. Dependencies: `click>=8.0`, `forge-webhook>=0.1.0`.
 
 ## Commands
 
@@ -16,9 +22,7 @@ Requires Python 3.11+. Dependencies: `click>=8.0`, `forge-webhook>=0.1.0`.
 
 Add an agent from a template.
 
-```
-forge add [AGENT_TYPE] [--id ID] [--interval INTERVAL] [--list]
-```
+`uv run forge add [AGENT_TYPE] [--id ID] [--interval INTERVAL] [--list]`
 
 | Flag | Description |
 |------|-------------|
@@ -29,48 +33,42 @@ forge add [AGENT_TYPE] [--id ID] [--interval INTERVAL] [--list]
 
 ```bash
 # Add a worker agent with default settings
-forge add worker
+uv run forge add worker
 
 # Add with custom ID and interval
-forge add worker --id worker-05 --interval 10m
+uv run forge add worker --id worker-05 --interval 10m
 
 # List available templates
-forge add --list
+uv run forge add --list
 ```
 
-The agent is staged in `cron-jobs.json`. Run `forge cron apply` to activate.
+The agent is staged in `cron-jobs.json`. Run `uv run forge cron apply` to activate.
 
 ### `forge remove`
 
 Remove an agent by ID.
 
-```
-forge remove AGENT_ID
-```
+`uv run forge remove AGENT_ID`
 
 ```bash
-forge remove worker-03
+uv run forge remove worker-03
 ```
 
-Removes the agent from `cron-jobs.json`. Run `forge cron apply` to deactivate.
+Removes the agent from `cron-jobs.json`. Run `uv run forge cron apply` to deactivate.
 
 ### `forge list` / `forge status`
 
 Show all agents grouped by state: staged, active, and unstaged (active but not in config).
 
-```
-forge list
-```
+`uv run forge list`
 
-Displays each agent's ID, role, interval, last run time, and next run countdown. Highlights pending changes (new, removed, interval changed) that require `forge cron apply`.
+Displays each agent's ID, role, interval, last run time, and next run countdown. Highlights pending changes (new, removed, interval changed) that require `uv run forge cron apply`.
 
 ### `forge logs`
 
 View agent logs with color-coded output.
 
-```
-forge logs [AGENT_ID] [-f | --follow] [-n LINES]
-```
+`uv run forge logs [AGENT_ID] [-f | --follow] [-n LINES]`
 
 | Flag | Description |
 |------|-------------|
@@ -80,32 +78,30 @@ forge logs [AGENT_ID] [-f | --follow] [-n LINES]
 
 ```bash
 # View last 50 lines of all agent logs
-forge logs
+uv run forge logs
 
 # Follow a specific agent's logs
-forge logs worker-01 -f
+uv run forge logs worker-01 -f
 
 # Show last 200 lines
-forge logs -n 200
+uv run forge logs -n 200
 ```
 
 ### `forge clear`
 
 Reset staged config — remove all agents from `cron-jobs.json`.
 
-```
-forge clear [--yes | -y]
-```
+`uv run forge clear [--yes | -y]`
 
 | Flag | Description |
 |------|-------------|
 | `-y`, `--yes` | Skip confirmation prompt |
 
 ```bash
-forge clear -y
+uv run forge clear -y
 ```
 
-Run `forge cron apply` afterwards to deactivate the cleared agents.
+Run `uv run forge cron apply` afterwards to deactivate the cleared agents.
 
 ### `forge cron`
 
@@ -116,16 +112,14 @@ Manage agent cron jobs directly.
 Sync the system crontab to match `cron-jobs.json`.
 
 ```bash
-forge cron apply
+uv run forge cron apply
 ```
 
 #### `forge cron add`
 
 Add a single cron job.
 
-```
-forge cron add ID INTERVAL PROMPT [--agentic] [--workspace] [--context TEXT] [--repo REPO]
-```
+`uv run forge cron add ID INTERVAL PROMPT [--agentic] [--workspace] [--context TEXT] [--repo REPO]`
 
 **Arguments:**
 
@@ -145,7 +139,7 @@ forge cron add ID INTERVAL PROMPT [--agentic] [--workspace] [--context TEXT] [--
 | `--repo REPO` | Target repo |
 
 ```bash
-forge cron add summary-bot 1h "Summarize recent activity" --context contexts/IDENTITY.md
+uv run forge cron add summary-bot 1h "Summarize recent activity" --context contexts/IDENTITY.md
 ```
 
 #### `forge cron remove`
@@ -153,7 +147,7 @@ forge cron add summary-bot 1h "Summarize recent activity" --context contexts/IDE
 Remove a cron job by ID.
 
 ```bash
-forge cron remove summary-bot
+uv run forge cron remove summary-bot
 ```
 
 #### `forge cron run`
@@ -161,7 +155,7 @@ forge cron remove summary-bot
 Run a job once immediately.
 
 ```bash
-forge cron run worker-01
+uv run forge cron run worker-01
 ```
 
 #### `forge cron clear`
@@ -169,16 +163,14 @@ forge cron run worker-01
 Remove all agent-kernel cron jobs from the system crontab.
 
 ```bash
-forge cron clear
+uv run forge cron clear
 ```
 
 ### `forge wh`
 
 Start the webhook monitor server with optional auto-tunnel.
 
-```
-forge wh [--port PORT] [--no-tunnel]
-```
+`uv run forge wh [--port PORT] [--no-tunnel]`
 
 | Flag | Description |
 |------|-------------|
@@ -187,10 +179,10 @@ forge wh [--port PORT] [--no-tunnel]
 
 ```bash
 # Start with auto-tunnel
-forge wh
+uv run forge wh
 
 # Start on a custom port without tunnel
-forge wh --port 9000 --no-tunnel
+uv run forge wh --port 9000 --no-tunnel
 ```
 
 Auto-tunnel uses `gh webhook forward` (preferred) or `ngrok` if available. Tunnel forwards GitHub events (`issues`, `pull_request`, `issue_comment`, `pull_request_review`) to the local server.

@@ -33,7 +33,7 @@ Unified command-line interface for managing agents.
 | `forge locks clear` | Clear stale locks (`--all` for all, `--all --force` to skip confirm) |
 | `forge wh` | Start webhook monitor with auto-tunnel |
 
-Install: `pip install -e apps/forge-cli`
+Run from the repo workspace: `uv run forge --help`
 
 ## Lock system
 
@@ -104,16 +104,22 @@ templates/       Agent configuration templates (worker.json, planner.json, super
 ```bash
 git clone https://github.com/alexjaniak/Forge.git
 cd Forge
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ./install.sh
 ```
 
-The install script checks prerequisites, installs dependencies, and generates config files.
+If you prefer another install method, see the official uv installation guide: https://docs.astral.sh/uv/getting-started/installation/
+
+If `uv` is not available immediately after installation, restart your shell or source your shell profile before running `./install.sh`.
+
+The install script checks prerequisites, syncs the Python workspace with `uv`, installs dependencies, and generates config files.
 
 ### Manual setup
 
 If you prefer manual setup:
-1. `pip install -e apps/forge-cli` — Install the Forge CLI
-2. `pip install -e apps/webhook-monitor` — Install the webhook server
+1. `curl -LsSf https://astral.sh/uv/install.sh | sh` — Install `uv`
+2. `uv sync --all-packages` — Sync the Forge Python workspace
 3. `cd apps/web && npm install` — Install dashboard dependencies
 4. `cp agent-kernel/.env.example agent-kernel/.env` — Configure credentials
 5. `cp apps/webhook-monitor/config.example.toml apps/webhook-monitor/config.toml` — Configure webhooks
+6. `uv run forge --help` — Verify the Forge CLI is available
