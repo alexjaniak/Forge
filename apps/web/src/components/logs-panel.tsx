@@ -407,13 +407,6 @@ export function LogsPanel() {
   );
 }
 
-function getRoleDotColor(agentId: string): string {
-  if (agentId.startsWith("worker")) return "#98c379";
-  if (agentId.startsWith("planner")) return "#c678dd";
-  if (agentId.startsWith("super")) return "#e5c07b";
-  return "#abb2bf";
-}
-
 function formatDuration(startIso: string, endIso: string): string {
   const ms = new Date(endIso).getTime() - new Date(startIso).getTime();
   if (ms < 0) return "";
@@ -426,7 +419,6 @@ function formatDuration(startIso: string, endIso: string): string {
 
 function LogCard({ block }: { block: LogBlock }) {
   const agentColor = getAgentColor(block.agentId);
-  const dotColor = getRoleDotColor(block.agentId);
   const duration =
     block.endTimestamp && block.timestamp
       ? formatDuration(block.timestamp, block.endTimestamp)
@@ -449,17 +441,13 @@ function LogCard({ block }: { block: LogBlock }) {
     >
       <div className="flex items-center gap-2 mb-2">
         <span
-          className="inline-flex items-center gap-1.5 text-sm font-semibold px-2 py-0.5 rounded"
+          className="inline-flex items-center text-sm font-semibold px-2 py-0.5 rounded"
           style={{
             backgroundColor: agentColor + "26",
             color: agentColor,
             border: `1px solid ${agentColor}4D`,
           }}
         >
-          <span
-            className="inline-block w-2 h-2 rounded-full shrink-0"
-            style={{ backgroundColor: dotColor }}
-          />
           {block.agentId}
         </span>
         <span className="text-sm text-muted-foreground">
