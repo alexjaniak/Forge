@@ -1,7 +1,7 @@
 {
   "interval": "2m",
   "prompt": "Review the current state of GitHub issues and PRs. Process any new worker handoff comments. Create new issues or adjust existing ones to progress toward the project goals. Spawn subplanner issues if scope is too large.",
-  "contexts": ["contexts/IDENTITY.md", "contexts/PLANNER.md", "contexts/CONSTRAINTS.md", "contexts/LABELS.md", "contexts/HANDOFF.md", "contexts/WORKSPACE.md"],
+  "contexts": ["contexts/IDENTITY.md", "contexts/PLANNER.md", "contexts/ASSIGNED_ISSUE.md", "contexts/CONSTRAINTS.md", "contexts/LABELS.md", "contexts/HANDOFF.md", "contexts/WORKSPACE.md"],
   "agentic": true,
   "workspace": true,
   "repo": "github.com/alexjaniak/Forge"
