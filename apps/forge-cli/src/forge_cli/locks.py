@@ -1,4 +1,4 @@
-"""forge locks - inspect and manage agent issue locks."""
+"""forge locks — inspect and manage agent issue locks."""
 
 import json
 import os
@@ -41,11 +41,12 @@ def _format_age(seconds: int) -> str:
     """Format seconds into a human-readable age string."""
     if seconds < 60:
         return f"{seconds}s"
-    if seconds < 3600:
+    elif seconds < 3600:
         return f"{seconds // 60}m"
-    if seconds < 86400:
+    elif seconds < 86400:
         return f"{seconds // 3600}h"
-    return f"{seconds // 86400}d"
+    else:
+        return f"{seconds // 86400}d"
 
 
 def _parse_lock(lock_dir: Path) -> dict | None:
@@ -86,11 +87,15 @@ def _parse_lock(lock_dir: Path) -> dict | None:
 
 
 def _discover_locks(repos_dir: str):
-    """Scan all repos under .repos/ for lock directories."""
+    """Scan all repos under .repos/ for lock directories.
+
+    Yields (repo_label, type_name, number, lock_dir, lock_info) tuples.
+    """
     repos_path = Path(repos_dir)
     if not repos_path.is_dir():
         return
 
+    # Walk .repos/github.com/<owner>/<repo>/locks/
     for host_dir in repos_path.iterdir():
         if not host_dir.is_dir():
             continue
@@ -142,18 +147,15 @@ def list_locks():
         click.echo("No locks held.")
         return
 
-    header = (
-        f"{'REPO':<30}  {'TYPE':<7}  {'#':<5}  {'AGENT':<15}  "
-        f"{'PID':<12}  {'AGE':<8}  STATUS"
-    )
+    # Print table
+    header = f"{'REPO':<30}  {'TYPE':<7}  {'#':<5}  {'AGENT':<15}  {'PID':<12}  {'AGE':<8}  STATUS"
     click.echo(header)
     click.echo("-" * len(header))
     for repo_label, display_type, number, _, info in entries:
         pid_str = str(info["pid"]) if info["pid"] else "?"
         status = "[stale]" if info["stale"] else "active"
         click.echo(
-            f"{repo_label:<30}  {display_type:<7}  {number:<5}  "
-            f"{info['agent']:<15}  {pid_str:<12}  {info['age']:<8}  {status}"
+            f"{repo_label:<30}  {display_type:<7}  {number:<5}  {info['agent']:<15}  {pid_str:<12}  {info['age']:<8}  {status}"
         )
 
 
@@ -180,7 +182,7 @@ def clear_locks(clear_all, force):
             )
         to_clear = entries
     else:
-        to_clear = [entry for entry in entries if entry[4]["stale"]]
+        to_clear = [e for e in entries if e[4]["stale"]]
 
     if not to_clear:
         click.echo("No stale locks found.")
@@ -191,8 +193,7 @@ def clear_locks(clear_all, force):
     for repo_label, display_type, number, lock_dir, info in to_clear:
         shutil.rmtree(lock_dir, ignore_errors=True)
         click.echo(
-            f"Cleared: {repo_label} {display_type} #{number} "
-            f"(agent={info['agent']}, pid={info['pid']})"
+            f"Cleared: {repo_label} {display_type} #{number} (agent={info['agent']}, pid={info['pid']})"
         )
 
     click.echo(f"Cleared {len(to_clear)} lock(s).")

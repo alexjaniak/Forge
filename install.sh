@@ -44,7 +44,7 @@ check_required() {
 
 echo "${BOLD}Checking prerequisites...${RESET}"
 check_required python3 "Python 3.11+" 3.11
-check_required pip     "pip"
+check_required uv      "uv"
 check_required git     "git"
 check_required gh      "gh CLI"
 check_required node    "Node.js 18+" 18.0
@@ -73,15 +73,16 @@ echo
 # ── Python packages ──────────────────────────────────────────────────
 
 echo "${BOLD}Installing Python packages...${RESET}"
-for pkg in apps/forge-cli apps/webhook-monitor; do
-  name=$(basename "$pkg")
-  if pip show "$name" &>/dev/null; then
-    info "$name already installed"
-  else
-    pip install -e "$pkg" --quiet
-    info "$name installed"
-  fi
-done
+had_venv=0
+[ -d .venv ] && had_venv=1
+
+uv sync --all-packages --quiet
+
+if [ "$had_venv" -eq 1 ]; then
+  info "Python workspace already synced"
+else
+  info "Python workspace synced"
+fi
 echo
 
 # ── Node.js setup ────────────────────────────────────────────────────
@@ -144,16 +145,16 @@ echo
 echo "${BOLD}Verifying installation...${RESET}"
 errors=0
 
-if forge --help &>/dev/null; then
-  info "forge CLI works"
+if uv run forge --help &>/dev/null; then
+  info "forge CLI works via uv"
 else
-  err "forge --help failed"; errors=1
+  err "uv run forge --help failed"; errors=1
 fi
 
-if python3 -c "import click" &>/dev/null; then
+if uv run python -c "import click; import forge_cli; import forge_webhook" &>/dev/null; then
   info "Python packages importable"
 else
-  err "python3 -c 'import click' failed"; errors=1
+  err "uv run python import check failed"; errors=1
 fi
 
 if node -e "console.log('ok')" &>/dev/null; then
@@ -181,10 +182,10 @@ ${GREEN}${BOLD}Setup complete!${RESET}
   ${GREEN}✓${RESET} Node modules installed
   ${GREEN}✓${RESET} Config files created
   ${GREEN}✓${RESET} Directories ready
-  ${GREEN}✓${RESET} forge CLI available
+  ${GREEN}✓${RESET} forge CLI available via uv run
 
   Next steps:
     1. Edit agent-kernel/.env with your Claude OAuth token
     2. Edit apps/webhook-monitor/config.toml with your webhook secret
-    3. Run: forge add worker && forge cron apply
+    3. Run: uv run forge add worker && uv run forge cron apply
 EOF
