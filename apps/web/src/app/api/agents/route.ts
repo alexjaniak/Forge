@@ -10,6 +10,7 @@ import {
   templatePath,
   worktreePath,
 } from "@/lib/paths";
+import { diffAgentConfig } from "@/lib/agent-config-diff";
 
 interface CronJob {
   id: string;
@@ -20,6 +21,8 @@ interface CronJob {
   workspace: boolean;
   enabled?: boolean;
   repo?: string;
+  runtime?: string;
+  model?: string;
 }
 
 interface CronState {
@@ -31,6 +34,12 @@ interface CronState {
       stagger_offset?: number;
       installed_at?: string;
       contexts?: string[];
+      prompt?: string;
+      agentic?: boolean;
+      workspace?: boolean;
+      repo?: string;
+      runtime?: string;
+      model?: string;
     }
   >;
 }
@@ -167,12 +176,17 @@ export async function GET() {
       return buildAgentFromJob(job, undefined, "new");
     }
 
-    const activeInterval = jobState?.interval;
-    if (activeInterval && activeInterval !== job.interval) {
+    const changes = diffAgentConfig(job, jobState ?? {});
+    if (Object.keys(changes).length > 0) {
+      const activeInterval = jobState?.interval;
+
       // interval field shows the active (running) interval
       // stagedInterval shows what it will change to on next apply
-      const modifiedJob = { ...job, interval: activeInterval };
-      return buildAgentFromJob(modifiedJob, jobState, "modified", job.interval);
+      const modifiedJob = activeInterval ? { ...job, interval: activeInterval } : job;
+      const stagedInterval =
+        changes.interval && typeof job.interval === "string" ? job.interval : undefined;
+
+      return buildAgentFromJob(modifiedJob, jobState, "modified", stagedInterval);
     }
 
     return buildAgentFromJob(job, jobState, "active");

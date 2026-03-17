@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
 import { cronJobsPath, cronStatePath } from "@/lib/paths";
+import {
+  COMPARE_FIELDS,
+  diffAgentConfig,
+  type FieldChange,
+} from "@/lib/agent-config-diff";
 
 interface CronJob {
   id: string;
@@ -44,21 +49,6 @@ interface AgentDiff {
   changes?: Record<string, FieldChange>;
 }
 
-const COMPARE_FIELDS = [
-  "interval",
-  "prompt",
-  "contexts",
-  "agentic",
-  "workspace",
-  "repo",
-  "runtime",
-  "model",
-] as const;
-
-function fieldsEqual(a: unknown, b: unknown): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
-}
-
 export async function GET() {
   try {
     let jobs: CronJob[] = [];
@@ -96,14 +86,7 @@ export async function GET() {
 
       // Modified agents: in both but with different fields
       const applied = state.jobs[job.id];
-      const changes: Record<string, FieldChange> = {};
-      for (const field of COMPARE_FIELDS) {
-        const stagedVal = job[field];
-        const appliedVal = applied[field];
-        if (!fieldsEqual(stagedVal, appliedVal)) {
-          changes[field] = { from: appliedVal, to: stagedVal };
-        }
-      }
+      const changes = diffAgentConfig(job, applied);
       if (Object.keys(changes).length > 0) {
         agents.push({ id: job.id, status: "modified", changes });
       }
