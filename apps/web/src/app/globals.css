@@ -122,6 +122,7 @@
 
 @layer utilities {
   .dashboard-scrollbar {
+    --dashboard-scrollbar-surface: var(--surface);
     scrollbar-width: thin;
     scrollbar-color: var(--border) transparent;
   }
@@ -136,7 +137,7 @@
 
   .dashboard-scrollbar::-webkit-scrollbar-thumb {
     background-color: var(--border);
-    border: 2px solid var(--surface);
+    border: 2px solid var(--dashboard-scrollbar-surface);
     border-radius: 9999px;
   }
 
