@@ -19,6 +19,10 @@ export function cronStatePath(): string {
   return path.join(getForgeRoot(), "agent-kernel/cron/cron-state.json");
 }
 
+export function worktreePath(agentId: string): string {
+  return path.join(getForgeRoot(), `.worktrees/${agentId}`);
+}
+
 export function lockFilePath(agentId: string): string {
   return path.join(getForgeRoot(), `.worktrees/${agentId}/.agent.lock`);
 }

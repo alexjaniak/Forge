@@ -19,6 +19,7 @@ interface Agent {
   agentic: boolean;
   workspace: boolean;
   repo: string;
+  branch: string | null;
   status: AgentStatus;
   stagedInterval?: string;
 }
@@ -186,7 +187,14 @@ function AgentCard({
         </button>
       </div>
 
-      <div className="flex items-center gap-3 text-sm text-text ml-4 mb-2">
+      {agent.branch && (
+        <div className="text-sm text-muted-foreground ml-4 mb-1 truncate" title={agent.branch}>
+          {agent.branch}
+        </div>
+      )}
+
+      <div className="flex items-center gap-1.5 text-sm text-text ml-4 mb-2">
+        <span className="text-muted-foreground">every</span>
         <span title="Interval">{agent.interval}</span>
         {agent.status === "modified" && agent.stagedInterval && (
           <span className="text-accent-yellow" title="Pending interval change">
@@ -194,14 +202,22 @@ function AgentCard({
           </span>
         )}
         {agent.lastRun && (
-          <span title={`Last run: ${agent.lastRun}`}>
-            {relativeTime(agent.lastRun)}
-          </span>
+          <>
+            <span className="text-muted-foreground">·</span>
+            <span className="text-muted-foreground">ran</span>
+            <span title={`Last run: ${agent.lastRun}`}>
+              {relativeTime(agent.lastRun)}
+            </span>
+          </>
         )}
         {agent.nextRun && (
-          <span className="text-accent-cyan" title={`Next run: ${agent.nextRun}`}>
-            {countdown(agent.nextRun)}
-          </span>
+          <>
+            <span className="text-muted-foreground">·</span>
+            <span className="text-muted-foreground">next</span>
+            <span className="text-accent-cyan" title={`Next run: ${agent.nextRun}`}>
+              {countdown(agent.nextRun)}
+            </span>
+          </>
         )}
       </div>
 

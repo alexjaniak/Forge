@@ -8,6 +8,7 @@ import {
   getForgeRoot,
   lockFilePath,
   templatePath,
+  worktreePath,
 } from "@/lib/paths";
 
 interface CronJob {
@@ -62,6 +63,23 @@ function isProcessAlive(pid: number): boolean {
   }
 }
 
+function getWorktreeBranch(agentId: string): string | null {
+  try {
+    const wtPath = worktreePath(agentId);
+    const dotGit = fs.readFileSync(path.join(wtPath, ".git"), "utf-8").trim();
+    // Format: "gitdir: /path/to/.git/worktrees/<name>"
+    const gitdir = dotGit.replace("gitdir: ", "");
+    const head = fs.readFileSync(path.join(gitdir, "HEAD"), "utf-8").trim();
+    // Format: "ref: refs/heads/<branch>"
+    if (head.startsWith("ref: refs/heads/")) {
+      return head.replace("ref: refs/heads/", "");
+    }
+    return null; // detached HEAD
+  } catch {
+    return null;
+  }
+}
+
 function inferRole(id: string): string {
   const match = id.match(/^([a-zA-Z]+)-\d+$/);
   return match?.[1] ?? "worker";
@@ -100,6 +118,7 @@ function buildAgentFromJob(
   return {
     id: job.id,
     role: inferRole(job.id),
+    branch: getWorktreeBranch(job.id),
     interval: job.interval,
     intervalSeconds,
     enabled: job.enabled !== false,
