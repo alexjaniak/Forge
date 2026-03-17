@@ -35,8 +35,6 @@ JOBS_FILE = os.path.join(SCRIPT_DIR, "cron-jobs.json")
 #       "interval": "5m",          # scheduling interval (Nm or Nh)
 #       "cron_expr": "*/5 * * * *",# resolved cron expression
 #       "prompt": "...",           # agent prompt
-#       "agentic": true,           # tool use enabled
-#       "workspace": true,         # git worktree isolation
 #       "contexts": [...],         # context file paths
 #       "repo": "",                # target repo (empty = self)
 #       "installed_at": "ISO8601", # when job was added/updated
@@ -80,14 +78,11 @@ def validate_model(model):
 
 
 
-def build_cron_command(job_id, prompt, agentic, contexts=None, workspace=False, repo=None, runtime=None, model=None):
+def build_cron_command(job_id, prompt, contexts=None, repo=None, runtime=None, model=None):
     runtime = runtime or "claude"
     env_prefix = f"AGENT_RUNTIME={runtime} " if runtime != "claude" else ""
     cmd = f"mkdir -p {LOGS_DIR} && cd {REPO_DIR} && {env_prefix}./agent-kernel/run.sh"
-    if agentic:
-        cmd += " --agentic"
-    if workspace:
-        cmd += f" --workspace {job_id}"
+    cmd += f" --workspace {job_id}"
     if repo:
         cmd += f" --repo {repo}"
     if model:
@@ -270,8 +265,6 @@ def cmd_apply(args):
         if (stagger_changed or
                 d["interval"] != a.get("interval") or
                 d["prompt"] != a.get("prompt") or
-                d.get("agentic", False) != a.get("agentic", False) or
-                d.get("workspace", False) != a.get("workspace", False) or
                 d.get("contexts", []) != a.get("contexts", []) or
                 d.get("repo", "") != a.get("repo", "") or
                 d.get("runtime", "claude") != a.get("runtime", "claude") or
@@ -298,7 +291,7 @@ def cmd_apply(args):
         model = job.get("model", "")
         validate_runtime(runtime)
         validate_model(model)
-        command = build_cron_command(job_id, job["prompt"], job.get("agentic", False), contexts, job.get("workspace", False), repo or None, runtime, model or None)
+        command = build_cron_command(job_id, job["prompt"], contexts, repo or None, runtime, model or None)
 
         offset = stagger_offsets.get(job_id, 0)
         if stagger and offset > 0:
@@ -314,8 +307,6 @@ def cmd_apply(args):
             "interval": job["interval"],
             "cron_expr": cron_expr,
             "prompt": job["prompt"],
-            "agentic": job.get("agentic", False),
-            "workspace": job.get("workspace", False),
             "contexts": contexts,
             "repo": repo,
             "runtime": runtime,
@@ -358,7 +349,7 @@ def cmd_add(args):
     cron_expr = parse_interval(args.interval)
     contexts = args.context or []
     repo = args.repo or ""
-    command = build_cron_command(args.id, args.prompt, args.agentic, contexts, args.workspace, repo or None, runtime, model or None)
+    command = build_cron_command(args.id, args.prompt, contexts, repo or None, runtime, model or None)
 
     crontab = read_crontab()
     crontab = add_job_to_crontab(crontab, args.id, cron_expr, command)
@@ -369,8 +360,6 @@ def cmd_add(args):
         "interval": args.interval,
         "cron_expr": cron_expr,
         "prompt": args.prompt,
-        "agentic": args.agentic,
-        "workspace": args.workspace,
         "contexts": contexts,
         "repo": repo,
         "runtime": runtime,
@@ -410,7 +399,6 @@ def cmd_list(args):
     stagger_enabled = state.get("stagger", False)
 
     for job_id, info in jobs.items():
-        mode = "agentic" if info.get("agentic") else "text"
         offset = info.get("stagger_offset", 0)
         if stagger_enabled and offset > 0:
             cron_expr, sleep_secs = apply_offset_to_interval(info["interval"], offset)
@@ -424,7 +412,7 @@ def cmd_list(args):
             cron_col = f"{info['cron_expr']} (stagger: base)"
         else:
             cron_col = info["cron_expr"]
-        print(f"  {job_id:<20} {cron_col:<30} {mode:<10} \"{info['prompt']}\"")
+        print(f"  {job_id:<20} {cron_col:<30} \"{info['prompt']}\"")
 
 
 def print_status_table():
@@ -507,10 +495,7 @@ def cmd_run(args):
         os.environ["AGENT_RUNTIME"] = runtime
 
     cmd = [os.path.join(REPO_DIR, "agent-kernel", "run.sh")]
-    if job.get("agentic"):
-        cmd.append("--agentic")
-    if job.get("workspace"):
-        cmd += ["--workspace", job["id"]]
+    cmd += ["--workspace", job["id"]]
     if job.get("repo"):
         cmd += ["--repo", job["repo"]]
     if job.get("model"):
@@ -553,8 +538,6 @@ def main():
     p_add.add_argument("id", help="Job identifier")
     p_add.add_argument("interval", help="Interval: Nm or Nh")
     p_add.add_argument("prompt", help="Prompt for run.sh")
-    p_add.add_argument("--agentic", action="store_true", help="Enable tool use")
-    p_add.add_argument("--workspace", action="store_true", help="Run in isolated git worktree")
     p_add.add_argument("--context", action="append", help="Context file path relative to repo root (repeatable)")
     p_add.add_argument("--repo", help="Target repo (e.g. github.com/owner/repo or absolute path)")
     p_add.add_argument("--runtime", default="claude", help="Agent runtime: claude or codex (default: claude)")

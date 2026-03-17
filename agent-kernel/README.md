@@ -25,17 +25,14 @@ cp agent-kernel/.env.example agent-kernel/.env
 ## Usage
 
 ```bash
-# Text-only (default — --print, no tools)
-./agent-kernel/run.sh "Summarize recent commits"
+# Tool-enabled run against a repo
+./agent-kernel/run.sh --repo github.com/owner/repo "Summarize recent commits"
 
 # With context files (paths relative to repo root)
-./agent-kernel/run.sh --context contexts/IDENTITY.md "Summarize recent commits"
-
-# Agentic with context
-./agent-kernel/run.sh --agentic --context contexts/IDENTITY.md "Check for stale PRs and comment on them"
+./agent-kernel/run.sh --repo github.com/owner/repo --context contexts/IDENTITY.md "Summarize recent commits"
 
 # Piped
-echo "List open issues" | ./agent-kernel/run.sh
+echo "List open issues" | ./agent-kernel/run.sh --repo github.com/owner/repo
 ```
 
 ## Context Library
@@ -104,6 +101,5 @@ This checks connectivity and confirms your token is valid.
 1. `--context <path>` flags assemble a system prompt from context files (paths relative to repo root)
 2. System prompt is passed via `--append-system-prompt` (preserves Claude's built-in capabilities)
 3. Your prompt goes as the message argument
-4. `--dangerously-skip-permissions` is on by default for unattended runs
-5. Default mode is `--print` (text only). Pass `--agentic` to enable tool use.
-6. `--workspace <id>` runs inside an isolated git worktree at `.repos/<id>`
+4. Tool-enabled execution uses `--dangerously-skip-permissions` for unattended runs
+5. `--workspace <id>` runs inside an isolated git worktree at `.repos/<repo>/.worktrees/<id>`
