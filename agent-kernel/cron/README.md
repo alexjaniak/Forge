@@ -12,6 +12,8 @@ Declarative cron management for agent-kernel. Python 3, no dependencies.
 ./agent-kernel/cron/manage.py apply
 ```
 
+Each job must declare a `repo`. When a job runs with workspace isolation, `run.sh` creates the worktree at `<target-repo>/.worktrees/<id>`.
+
 ## cron-jobs.json
 
 Source of truth for desired cron state. Checked into git.
@@ -36,7 +38,7 @@ Source of truth for desired cron state. Checked into git.
 | `id` | string | required | Unique job identifier. |
 | `interval` | string | required | `Nm` (minutes) or `Nh` (hours). |
 | `prompt` | string | required | Prompt passed to `run.sh`. |
-| `repo` | string | `""` | Target repo (e.g. `"github.com/owner/repo"`). When omitted, the agent targets the Forge repo itself. |
+| `repo` | string | required | Target repo (for example `"github.com/owner/repo"` or an absolute local path). This is passed to `run.sh --repo`. |
 | `contexts` | string[] | `[]` | List of context file paths relative to repo root, each passed as `--context` to `run.sh`. |
 | `enabled` | bool | `true` | Set `false` to remove from crontab without deleting config. |
 
@@ -47,7 +49,7 @@ Source of truth for desired cron state. Checked into git.
 ./agent-kernel/cron/manage.py apply
 
 # Imperative — one-off add/remove
-./agent-kernel/cron/manage.py add <id> <interval> "<prompt>"
+./agent-kernel/cron/manage.py add <id> <interval> "<prompt>" --repo github.com/owner/repo
 ./agent-kernel/cron/manage.py remove <id>
 
 # Inspect
