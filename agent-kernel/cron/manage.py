@@ -272,6 +272,23 @@ def _read_process_command(pid):
     return command or None
 
 
+def _read_process_cwd(pid):
+    result = subprocess.run(
+        ["lsof", "-a", "-p", str(pid), "-d", "cwd", "-Fn"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+
+    for line in result.stdout.splitlines():
+        if line.startswith("n"):
+            cwd = line[1:].strip()
+            return cwd or None
+    return None
+
+
 def _parse_run_command(command):
     try:
         argv = shlex.split(command)
@@ -318,10 +335,17 @@ def _matches_managed_run(job_id, pid, command):
         return None
 
     run_path = parsed["run_path"]
-    if os.path.isabs(run_path) and os.path.normpath(run_path) != os.path.join(REPO_DIR, "agent-kernel", "run.sh"):
-        return None
     if parsed["workspace_id"] != job_id:
         return None
+
+    expected_run_path = os.path.join(REPO_DIR, "agent-kernel", "run.sh")
+    if os.path.isabs(run_path):
+        if os.path.normpath(run_path) != expected_run_path:
+            return None
+    else:
+        cwd = _read_process_cwd(pid)
+        if os.path.normpath(cwd or "") != REPO_DIR:
+            return None
 
     return {
         "agent_id": job_id,

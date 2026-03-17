@@ -27,6 +27,31 @@ class ManageKillTests(unittest.TestCase):
         self.assertEqual(parsed["workspace_id"], "worker-02")
         self.assertEqual(parsed["repo"], "github.com/alexjaniak/Forge")
 
+    def test_matches_managed_run_accepts_absolute_repo_run_path(self):
+        command = "/bin/bash /tmp/forge/agent-kernel/run.sh --workspace worker-02 'prompt'"
+
+        with patch.object(manage, "REPO_DIR", "/tmp/forge"):
+            run = manage._matches_managed_run("worker-02", 101, command)
+
+        self.assertEqual(
+            run,
+            {
+                "agent_id": "worker-02",
+                "pid": 101,
+                "command": command,
+            },
+        )
+
+    def test_matches_managed_run_requires_repo_cwd_for_relative_run_path(self):
+        command = "/bin/bash ./agent-kernel/run.sh --workspace worker-02 'prompt'"
+
+        with patch.object(manage, "REPO_DIR", "/tmp/forge"), patch.object(
+            manage, "_read_process_cwd", return_value="/tmp/other"
+        ):
+            run = manage._matches_managed_run("worker-02", 101, command)
+
+        self.assertIsNone(run)
+
     def test_find_managed_runs_filters_out_stale_and_non_matching_processes(self):
         with patch.object(manage, "REPO_DIR", "/tmp/forge"), patch.object(
             manage, "_list_workspace_ids", return_value=["worker-02", "worker-03", "worker-04"]
@@ -59,6 +84,26 @@ class ManageKillTests(unittest.TestCase):
                 }
             ],
         )
+
+    def test_find_managed_runs_rejects_reused_pid_from_other_checkout(self):
+        with patch.object(manage, "REPO_DIR", "/tmp/forge"), patch.object(
+            manage, "_list_workspace_ids", return_value=["worker-02"]
+        ), patch.object(
+            manage,
+            "_read_lock_pid",
+            return_value=101,
+        ), patch.object(
+            manage,
+            "_read_process_command",
+            return_value="/bin/bash ./agent-kernel/run.sh --workspace worker-02 'prompt'",
+        ), patch.object(
+            manage,
+            "_read_process_cwd",
+            return_value="/tmp/other-checkout",
+        ):
+            runs = manage.find_managed_runs()
+
+        self.assertEqual(runs, [])
 
     def test_kill_managed_runs_returns_killed_runs(self):
         runs = [
