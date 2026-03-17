@@ -26,6 +26,15 @@ class ManageKillTests(unittest.TestCase):
             "/tmp/forge/.repos/github.com/alexjaniak/Forge/.worktrees/worker-02/.agent.lock",
         )
 
+    def test_workspace_lock_path_resolves_relative_target_repo_from_forge_root(self):
+        with patch.object(manage, "REPO_DIR", "/tmp/forge"):
+            lock_path = manage._workspace_lock_path("worker-02", "repos/demo")
+
+        self.assertEqual(
+            lock_path,
+            "/tmp/forge/repos/demo/.worktrees/worker-02/.agent.lock",
+        )
+
     def test_parse_run_command_extracts_workspace_and_repo(self):
         command = (
             "/bin/bash /tmp/forge/agent-kernel/run.sh --agentic "
@@ -127,6 +136,35 @@ class ManageKillTests(unittest.TestCase):
             ],
         )
 
+    def test_find_managed_runs_uses_relative_configured_repo_root_for_targeted_kill(self):
+        with patch.object(manage, "REPO_DIR", "/tmp/forge"), patch.object(
+            manage,
+            "_configured_workspace_jobs",
+            return_value=[("worker-02", "repos/demo")],
+        ), patch.object(
+            manage,
+            "_read_lock_pid",
+            side_effect=lambda path: {
+                "/tmp/forge/repos/demo/.worktrees/worker-02/.agent.lock": 101,
+            }.get(path),
+        ), patch.object(
+            manage,
+            "_read_process_command",
+            return_value="/bin/bash /tmp/forge/agent-kernel/run.sh --workspace worker-02 --repo repos/demo 'prompt'",
+        ):
+            runs = manage.find_managed_runs(agent_id="worker-02")
+
+        self.assertEqual(
+            runs,
+            [
+                {
+                    "agent_id": "worker-02",
+                    "pid": 101,
+                    "command": "/bin/bash /tmp/forge/agent-kernel/run.sh --workspace worker-02 --repo repos/demo 'prompt'",
+                }
+            ],
+        )
+
     def test_find_managed_runs_scans_configured_repo_roots_for_bulk_kill(self):
         with patch.object(manage, "REPO_DIR", "/tmp/forge"), patch.object(
             manage,
@@ -134,6 +172,7 @@ class ManageKillTests(unittest.TestCase):
             return_value=[
                 ("worker-02", "github.com/alexjaniak/Forge"),
                 ("worker-03", "/tmp/other-repo"),
+                ("worker-04", "repos/demo"),
             ],
         ), patch.object(
             manage,
@@ -141,6 +180,7 @@ class ManageKillTests(unittest.TestCase):
             side_effect=lambda path: {
                 "/tmp/forge/.repos/github.com/alexjaniak/Forge/.worktrees/worker-02/.agent.lock": 101,
                 "/tmp/other-repo/.worktrees/worker-03/.agent.lock": 202,
+                "/tmp/forge/repos/demo/.worktrees/worker-04/.agent.lock": 303,
             }.get(path),
         ), patch.object(
             manage,
@@ -148,6 +188,7 @@ class ManageKillTests(unittest.TestCase):
             side_effect=lambda pid: {
                 101: "/bin/bash /tmp/forge/agent-kernel/run.sh --workspace worker-02 --repo github.com/alexjaniak/Forge 'prompt'",
                 202: "/bin/bash /tmp/forge/agent-kernel/run.sh --workspace worker-03 --repo /tmp/other-repo 'prompt'",
+                303: "/bin/bash /tmp/forge/agent-kernel/run.sh --workspace worker-04 --repo repos/demo 'prompt'",
             }.get(pid),
         ):
             runs = manage.find_managed_runs()
@@ -164,6 +205,11 @@ class ManageKillTests(unittest.TestCase):
                     "agent_id": "worker-03",
                     "pid": 202,
                     "command": "/bin/bash /tmp/forge/agent-kernel/run.sh --workspace worker-03 --repo /tmp/other-repo 'prompt'",
+                },
+                {
+                    "agent_id": "worker-04",
+                    "pid": 303,
+                    "command": "/bin/bash /tmp/forge/agent-kernel/run.sh --workspace worker-04 --repo repos/demo 'prompt'",
                 },
             ],
         )
