@@ -32,7 +32,7 @@ cp agent-kernel/.env.example agent-kernel/.env
 ./agent-kernel/run.sh --repo github.com/owner/repo --context contexts/IDENTITY.md "Summarize recent commits"
 
 # In an isolated worktree under the target repo
-./agent-kernel/run.sh --repo github.com/owner/repo --workspace worker-01 "Check for stale PRs"
+./agent-kernel/run.sh --repo github.com/owner/repo --workspace worker-01 --context contexts/IDENTITY.md "Check for stale PRs and comment on them"
 
 # Piped
 echo "List open issues" | ./agent-kernel/run.sh --repo github.com/owner/repo
@@ -110,5 +110,6 @@ This checks connectivity and confirms your token is valid.
 2. System prompt is passed via `--append-system-prompt` (preserves Claude's built-in capabilities)
 3. Your prompt goes as the message argument
 4. `--repo <path-or-url>` is required; GitHub repos like `github.com/owner/repo` are cloned under Forge at `.repos/github.com/owner/repo`
-5. Tool-enabled execution uses `--dangerously-skip-permissions` for unattended runs
-6. `--workspace <id>` runs inside an isolated git worktree at `<target-repo>/.worktrees/<id>`
+5. `--dangerously-skip-permissions` is on by default for unattended runs
+6. One-shot runs default to text-only `--print`; pass `--agentic` when you want tool access directly
+7. Forge-managed cron and template runs enable tool access automatically and use `--workspace <id>` under `<target-repo>/.worktrees/<id>`

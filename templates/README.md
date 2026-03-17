@@ -1,6 +1,6 @@
 # Templates
 
-JSON files that define the runtime configuration for each agent role. Each template specifies which contexts to include in the agent's system prompt, along with scheduling and execution settings.
+JSON files that define the runtime configuration for each agent role. Each template specifies which contexts to include in the agent's system prompt, along with scheduling metadata and the target repo.
 
 ## Template format
 
@@ -31,3 +31,5 @@ JSON files that define the runtime configuration for each agent role. Each templ
 ## Usage
 
 Templates are loaded by the Forge CLI (`apps/forge-cli`) and web dashboard (`apps/web`) to launch agent runs via `agent-kernel/run.sh`.
+
+Forge-managed agents always run with tool access in isolated worktrees under the target repo. Templates no longer expose separate booleans for those runtime behaviors.
