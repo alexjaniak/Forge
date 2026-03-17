@@ -25,14 +25,11 @@ cp agent-kernel/.env.example agent-kernel/.env
 ## Usage
 
 ```bash
-# Text-only (default — --print, no tools)
-./agent-kernel/run.sh "Summarize recent commits"
-
 # With context files (paths relative to repo root)
 ./agent-kernel/run.sh --context contexts/IDENTITY.md "Summarize recent commits"
 
-# Agentic with context
-./agent-kernel/run.sh --agentic --context contexts/IDENTITY.md "Check for stale PRs and comment on them"
+# With an isolated worktree
+./agent-kernel/run.sh --workspace worker-01 --context contexts/IDENTITY.md "Check for stale PRs and comment on them"
 
 # Piped
 echo "List open issues" | ./agent-kernel/run.sh
@@ -105,5 +102,5 @@ This checks connectivity and confirms your token is valid.
 2. System prompt is passed via `--append-system-prompt` (preserves Claude's built-in capabilities)
 3. Your prompt goes as the message argument
 4. `--dangerously-skip-permissions` is on by default for unattended runs
-5. Default mode is `--print` (text only). Pass `--agentic` to enable tool use.
-6. `--workspace <id>` runs inside an isolated git worktree at `.repos/<id>`
+5. Tool access is enabled for Forge-managed runs without an extra mode flag
+6. `--workspace <id>` runs inside an isolated git worktree at `.repos/<id>`; Forge-managed agents use this automatically
