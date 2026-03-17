@@ -239,7 +239,7 @@ def _resolve_work_repo_dir(repo):
         return repo
     if repo.startswith("github.com/"):
         return os.path.join(REPO_DIR, ".repos", repo)
-    return repo
+    return os.path.join(REPO_DIR, repo)
 
 
 def _workspace_lock_path(job_id, repo=""):
