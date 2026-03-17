@@ -41,7 +41,7 @@ const ROLE_COLORS: Record<string, string> = {
   super: "var(--accent-yellow)",
 };
 
-export function LogsPanel() {
+export function LogsPanel({ refreshKey }: { refreshKey?: number }) {
   const [blocks, setBlocks] = useState<LogBlock[]>([]);
   const [agents, setAgents] = useState<string[]>([]);
   const [filter, setFilter] = useState("");
@@ -264,6 +264,13 @@ export function LogsPanel() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mergeBlocks, startFallbackPolling, stopFallbackPolling]);
+
+  // Manual refresh via refreshKey
+  useEffect(() => {
+    if (refreshKey && refreshKey > 0) {
+      fetchInitialLogs();
+    }
+  }, [refreshKey, fetchInitialLogs]);
 
   // Auto-scroll detection
   const handleScroll = useCallback(() => {

@@ -88,7 +88,7 @@ function EventCard({ event }: { event: NormalizedEvent }) {
   );
 }
 
-export function EventsPanel() {
+export function EventsPanel({ refreshKey }: { refreshKey?: number }) {
   const [events, setEvents] = useState<NormalizedEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [autoScroll, setAutoScroll] = useState(true);
@@ -124,6 +124,13 @@ export function EventsPanel() {
       clearInterval(id);
     };
   }, [fetchEvents]);
+
+  // Manual refresh via refreshKey
+  useEffect(() => {
+    if (refreshKey && refreshKey > 0) {
+      fetchEvents();
+    }
+  }, [refreshKey, fetchEvents]);
 
   const handleScroll = useCallback(() => {
     const el = containerRef.current;
