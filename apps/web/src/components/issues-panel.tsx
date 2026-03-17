@@ -119,7 +119,7 @@ function IssueCard({ issue, repo }: { issue: Issue; repo: string }) {
   );
 }
 
-export function IssuesPanel() {
+export function IssuesPanel({ refreshKey }: { refreshKey?: number }) {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [repo, setRepo] = useState("");
   const [error, setError] = useState("");
@@ -230,6 +230,12 @@ export function IssuesPanel() {
   useEffect(() => {
     mutedRef.current = muted;
   }, [muted]);
+
+  useEffect(() => {
+    if (refreshKey && refreshKey > 0) {
+      void fetchIssues();
+    }
+  }, [refreshKey, fetchIssues]);
 
   useEffect(() => {
     try { localStorage.setItem("forge-admin-alert-muted", String(muted)); } catch {}

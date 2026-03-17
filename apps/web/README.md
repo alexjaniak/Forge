@@ -51,6 +51,11 @@ src/app/
 | **EventsPanel** | `events-panel.tsx` | Polls `/api/events` every 3s. Shows GitHub event cards with action badges (color-coded), issue numbers, actors, labels. Max 50 events displayed. |
 | **IssuesPanel** | `issues-panel.tsx` | Connects to `/api/issues/stream` for live issue snapshots with `/api/issues` polling fallback. Shows GitHub issues with label badges (color-coded by status/role/type). Filterable by status and role labels. Audio alert only when an issue newly gains `role:admin`. |
 
+### Dashboard UX
+
+- The right-panel tab bar persists the active tab in the URL hash, so reloads and shared links reopen the same Logs, Events, or Issues view.
+- The manual refresh control in the tab bar triggers immediate refreshes for Issues, Events, and Logs without waiting for their polling intervals.
+
 ### Data Flow
 
 ```
