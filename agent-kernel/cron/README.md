@@ -39,9 +39,9 @@ Source of truth for desired cron state. Checked into git.
 | `interval` | string | required | `Nm` (minutes) or `Nh` (hours). |
 | `prompt` | string | required | Prompt passed to `run.sh`. |
 | `agentic` | bool | `false` | Enable tool use (`--agentic`). |
-| `repo` | string | `""` | Target repo (e.g. `"github.com/owner/repo"`). When omitted, the agent targets the Forge repo itself. |
+| `repo` | string | required | Target repo (for example `"github.com/owner/repo"` or an absolute local path). `run.sh` exits with an error when this is omitted. |
 | `contexts` | string[] | `[]` | List of context file paths relative to repo root, each passed as `--context` to `run.sh`. |
-| `workspace` | bool | `false` | Run the agent in an isolated git worktree (`--workspace <id>`). |
+| `workspace` | bool | `false` | Run the agent in an isolated git worktree at `<target-repo>/.worktrees/<id>`. For GitHub repo strings, the base clone lives at `.repos/github.com/owner/repo`. |
 | `enabled` | bool | `true` | Set `false` to remove from crontab without deleting config. |
 
 ## Commands

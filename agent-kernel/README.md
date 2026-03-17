@@ -26,17 +26,19 @@ cp agent-kernel/.env.example agent-kernel/.env
 
 ```bash
 # Text-only (default — --print, no tools)
-./agent-kernel/run.sh "Summarize recent commits"
+./agent-kernel/run.sh --repo github.com/owner/repo "Summarize recent commits"
 
 # With context files (paths relative to repo root)
-./agent-kernel/run.sh --context contexts/IDENTITY.md "Summarize recent commits"
+./agent-kernel/run.sh --repo github.com/owner/repo --context contexts/IDENTITY.md "Summarize recent commits"
 
 # Agentic with context
-./agent-kernel/run.sh --agentic --context contexts/IDENTITY.md "Check for stale PRs and comment on them"
+./agent-kernel/run.sh --repo github.com/owner/repo --agentic --context contexts/IDENTITY.md "Check for stale PRs and comment on them"
 
 # Piped
-echo "List open issues" | ./agent-kernel/run.sh
+echo "List open issues" | ./agent-kernel/run.sh --repo github.com/owner/repo
 ```
+
+`--repo` is required. Pass an absolute local path or a `github.com/owner/repo` string.
 
 ## Context Library
 
@@ -106,4 +108,5 @@ This checks connectivity and confirms your token is valid.
 3. Your prompt goes as the message argument
 4. `--dangerously-skip-permissions` is on by default for unattended runs
 5. Default mode is `--print` (text only). Pass `--agentic` to enable tool use.
-6. `--workspace <id>` runs inside an isolated git worktree at `.repos/<id>`
+6. `--repo` selects the working repository. `github.com/owner/repo` targets a clone at `.repos/github.com/owner/repo`; an absolute path uses that local repo directly.
+7. `--workspace <id>` runs inside an isolated git worktree at `<target-repo>/.worktrees/<id>`
