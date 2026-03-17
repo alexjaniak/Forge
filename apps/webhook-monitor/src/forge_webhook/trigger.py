@@ -88,8 +88,8 @@ def _invoke_agent(repo_dir: str, rule: dict, event: dict) -> None:
 
     cmd = [
         str(Path(repo_dir) / "agent-kernel" / "run.sh"),
-        "--agentic",
         "--workspace", workspace,
+        "--repo", repo_dir,
     ]
     if context:
         cmd.extend(["--context", context])
