@@ -543,7 +543,7 @@ export function AgentPanel() {
   const hasStagedAgents = agents.filter((a) => a.status !== "orphan").length > 0;
 
   return (
-    <div className="h-full bg-surface px-3 pb-3 overflow-y-auto flex flex-col">
+    <div className="dashboard-scrollbar h-full bg-surface px-3 pb-3 overflow-y-auto flex flex-col">
       <div className="flex items-center gap-2 py-2">
         <button
           className="text-xs rounded px-2 py-1 border border-border text-text hover:bg-surface-hover transition-colors"
