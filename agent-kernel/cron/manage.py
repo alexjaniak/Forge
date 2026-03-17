@@ -77,6 +77,13 @@ def validate_model(model):
         sys.exit(1)
 
 
+def require_repo(repo, context):
+    if not isinstance(repo, str) or not repo.strip():
+        print(f"Error: {context} requires a non-empty repo", file=sys.stderr)
+        sys.exit(1)
+    return repo.strip()
+
+
 
 def build_cron_command(job_id, prompt, contexts=None, repo=None, runtime=None, model=None):
     runtime = runtime or "claude"
@@ -243,6 +250,7 @@ def cmd_apply(args):
     for job in config.get("jobs", []):
         if job.get("enabled", True):
             desired[job["id"]] = job
+            job["repo"] = require_repo(job.get("repo"), f"job '{job['id']}'")
 
     # Compute stagger offsets when enabled
     stagger_offsets = {}
@@ -286,12 +294,12 @@ def cmd_apply(args):
     for job_id in sorted(to_add | to_update):
         job = desired[job_id]
         contexts = job.get("contexts", [])
-        repo = job.get("repo", "")
+        repo = job["repo"]
         runtime = job.get("runtime", "claude")
         model = job.get("model", "")
         validate_runtime(runtime)
         validate_model(model)
-        command = build_cron_command(job_id, job["prompt"], contexts, repo or None, runtime, model or None)
+        command = build_cron_command(job_id, job["prompt"], contexts, repo, runtime, model or None)
 
         offset = stagger_offsets.get(job_id, 0)
         if stagger and offset > 0:
@@ -348,8 +356,8 @@ def cmd_add(args):
 
     cron_expr = parse_interval(args.interval)
     contexts = args.context or []
-    repo = args.repo or ""
-    command = build_cron_command(args.id, args.prompt, contexts, repo or None, runtime, model or None)
+    repo = require_repo(args.repo, f"job '{args.id}'")
+    command = build_cron_command(args.id, args.prompt, contexts, repo, runtime, model or None)
 
     crontab = read_crontab()
     crontab = add_job_to_crontab(crontab, args.id, cron_expr, command)
@@ -539,7 +547,7 @@ def main():
     p_add.add_argument("interval", help="Interval: Nm or Nh")
     p_add.add_argument("prompt", help="Prompt for run.sh")
     p_add.add_argument("--context", action="append", help="Context file path relative to repo root (repeatable)")
-    p_add.add_argument("--repo", help="Target repo (e.g. github.com/owner/repo or absolute path)")
+    p_add.add_argument("--repo", required=True, help="Target repo (e.g. github.com/owner/repo or absolute path)")
     p_add.add_argument("--runtime", default="claude", help="Agent runtime: claude or codex (default: claude)")
     p_add.add_argument("--model", default="", help="Explicit model override (e.g. gpt-5.4)")
 
