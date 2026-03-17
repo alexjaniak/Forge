@@ -246,7 +246,7 @@ RUNTIME_ARGS=()
 if [[ "$AGENT_RUNTIME" == "codex" ]]; then
   RUNTIME_ARGS+=(--dangerously-bypass-approvals-and-sandbox)
   if [[ -n "$SYSTEM_PROMPT" ]]; then
-    RUNTIME_ARGS+=(-c "instructions=$(printf '%s' "$SYSTEM_PROMPT")")
+    PROMPT="${SYSTEM_PROMPT}"$'\n\n'"${PROMPT}"
   fi
 else
   if [[ "$AGENTIC" == false ]]; then
