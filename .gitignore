@@ -6,7 +6,6 @@ agent-kernel/cron/cron-state.json
 agent-kernel/logs/*
 !agent-kernel/logs/view.sh
 .claude
-.venv/
 *.egg-info/
 __pycache__/
 apps/webhook-monitor/config.toml

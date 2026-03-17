@@ -2,8 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
-const POLL_INTERVAL = 5000;
-
 interface Issue {
   number: number;
   title: string;
@@ -130,64 +128,43 @@ export function IssuesPanel({ refreshKey }: { refreshKey?: number }) {
   });
   const prevIssuesRef = useRef<Issue[]>([]);
   const initialLoadRef = useRef(true);
-  const mutedRef = useRef<boolean>(muted);
-  const eventSourceRef = useRef<EventSource | null>(null);
-  const fallbackTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const applySnapshot = useCallback((data: { issues?: Issue[]; repo?: string; error?: string }) => {
-    if (data.error) setError(data.error);
-    else setError("");
-
-    const newIssues = data.issues ?? [];
-    setIssues(newIssues);
-    if (typeof data.repo === "string") {
-      setRepo(data.repo);
-    }
-
-    if (initialLoadRef.current) {
-      initialLoadRef.current = false;
-      prevIssuesRef.current = newIssues;
-      return;
-    }
-
-    if (!mutedRef.current) {
-      const prevAdminIds = new Set(
-        prevIssuesRef.current
-          .filter((issue) => issue.labels.some((label) => label.name === "role:admin"))
-          .map((issue) => issue.number)
-      );
-      const hasNewAdminIssue = newIssues.some(
-        (issue) =>
-          issue.labels.some((label) => label.name === "role:admin") &&
-          !prevAdminIds.has(issue.number)
-      );
-      if (hasNewAdminIssue) {
-        playAdminAlert();
-      }
-    }
-
-    prevIssuesRef.current = newIssues;
-  }, []);
+  const mutedRef = useRef(muted);
 
   const fetchIssues = useCallback(async () => {
     try {
       const res = await fetch("/api/issues");
       const data = await res.json();
-      applySnapshot(data);
+      if (data.error) setError(data.error);
+      else setError("");
+      const newIssues: Issue[] = data.issues ?? [];
+      setIssues(newIssues);
+      if (data.repo) setRepo(data.repo);
+
+      if (initialLoadRef.current) {
+        initialLoadRef.current = false;
+        prevIssuesRef.current = newIssues;
+        return;
+      }
+
+      if (!mutedRef.current) {
+        const prevAdminIds = new Set(
+          prevIssuesRef.current
+            .filter((issue) => issue.labels.some((label) => label.name === "role:admin"))
+            .map((issue) => issue.number)
+        );
+        const hasNewAdminIssue = newIssues.some(
+          (issue) =>
+            issue.labels.some((label) => label.name === "role:admin") &&
+            !prevAdminIds.has(issue.number)
+        );
+        if (hasNewAdminIssue) {
+          playAdminAlert();
+        }
+      }
+
+      prevIssuesRef.current = newIssues;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Fetch failed");
-    }
-  }, [applySnapshot]);
-
-  const startFallbackPolling = useCallback(() => {
-    if (fallbackTimerRef.current) return;
-    fallbackTimerRef.current = setInterval(fetchIssues, POLL_INTERVAL);
-  }, [fetchIssues]);
-
-  const stopFallbackPolling = useCallback(() => {
-    if (fallbackTimerRef.current) {
-      clearInterval(fallbackTimerRef.current);
-      fallbackTimerRef.current = null;
     }
   }, []);
 
@@ -195,37 +172,12 @@ export function IssuesPanel({ refreshKey }: { refreshKey?: number }) {
     const initialFetchId = window.setTimeout(() => {
       void fetchIssues();
     }, 0);
-
-    const es = new EventSource("/api/issues/stream");
-    eventSourceRef.current = es;
-
-    const handleSnapshot = (event: MessageEvent<string>) => {
-      try {
-        applySnapshot(JSON.parse(event.data));
-      } catch {
-        setError("Invalid issue stream payload");
-      }
-    };
-
-    es.onmessage = handleSnapshot;
-    es.addEventListener("snapshot", handleSnapshot as EventListener);
-
-    es.onerror = () => {
-      startFallbackPolling();
-    };
-
-    es.onopen = () => {
-      stopFallbackPolling();
-    };
-
+    const id = setInterval(fetchIssues, 5000);
     return () => {
       window.clearTimeout(initialFetchId);
-      es.removeEventListener("snapshot", handleSnapshot as EventListener);
-      es.close();
-      eventSourceRef.current = null;
-      stopFallbackPolling();
+      clearInterval(id);
     };
-  }, [applySnapshot, fetchIssues, startFallbackPolling, stopFallbackPolling]);
+  }, [fetchIssues]);
 
   useEffect(() => {
     mutedRef.current = muted;
@@ -233,7 +185,10 @@ export function IssuesPanel({ refreshKey }: { refreshKey?: number }) {
 
   useEffect(() => {
     if (refreshKey && refreshKey > 0) {
-      void fetchIssues();
+      const refreshFetchId = window.setTimeout(() => {
+        void fetchIssues();
+      }, 0);
+      return () => window.clearTimeout(refreshFetchId);
     }
   }, [refreshKey, fetchIssues]);
 
