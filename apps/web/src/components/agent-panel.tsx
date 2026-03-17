@@ -456,7 +456,7 @@ function AddAgentModal({
   );
 }
 
-export function AgentPanel() {
+export function AgentPanel({ refreshKey }: { refreshKey?: number }) {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -491,6 +491,13 @@ export function AgentPanel() {
       if (clearTimeoutRef.current) clearTimeout(clearTimeoutRef.current);
     };
   }, [fetchAgents]);
+
+  // Manual refresh via refreshKey
+  useEffect(() => {
+    if (refreshKey && refreshKey > 0) {
+      fetchAgents();
+    }
+  }, [refreshKey, fetchAgents]);
 
   const showFeedback = (msg: string) => {
     setActionFeedback(msg);
