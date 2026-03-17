@@ -23,6 +23,8 @@ Unified command-line interface for managing agents.
 | `forge remove <id>` | Remove an agent |
 | `forge apply` | Sync staged agent config to live crontab |
 | `forge run <id>` | Run an agent once immediately |
+| `forge kill <id>` | Terminate one running managed agent |
+| `forge kill --all` | Terminate all running managed agents |
 | `forge clear` | Clear active crontab and state |
 | `forge clear --staged` | Clear only staged config |
 | `forge list` | Show all agents (staged, active, unstaged) |
