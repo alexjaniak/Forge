@@ -25,7 +25,7 @@ cp agent-kernel/.env.example agent-kernel/.env
 ## Usage
 
 ```bash
-# Tool-enabled run against a repo
+# Tool-enabled run against a repo (--repo is required)
 ./agent-kernel/run.sh --repo github.com/owner/repo "Summarize recent commits"
 
 # With context files (paths relative to repo root)
@@ -101,5 +101,6 @@ This checks connectivity and confirms your token is valid.
 1. `--context <path>` flags assemble a system prompt from context files (paths relative to repo root)
 2. System prompt is passed via `--append-system-prompt` (preserves Claude's built-in capabilities)
 3. Your prompt goes as the message argument
-4. Tool-enabled execution uses `--dangerously-skip-permissions` for unattended runs
-5. `--workspace <id>` runs inside an isolated git worktree at `.repos/<repo>/.worktrees/<id>`
+4. Runs are always tool-enabled; `run.sh` does not have a separate text-only or `--agentic` mode
+5. `--workspace <id>` runs inside an isolated git worktree at `<target-repo>/.worktrees/<id>`
+6. `--repo <path-or-url>` is required; GitHub repos are cloned under Forge at `.repos/<repo>`, then worktrees are created inside that target repo

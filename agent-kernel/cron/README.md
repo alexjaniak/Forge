@@ -8,6 +8,7 @@ Declarative cron management for agent-kernel. Python 3, no dependencies.
 
 ```bash
 # 1. Define jobs in cron-jobs.json
+#    Each job must set "repo"
 # 2. Sync crontab
 ./agent-kernel/cron/manage.py apply
 ```
@@ -36,7 +37,7 @@ Source of truth for desired cron state. Checked into git.
 | `id` | string | required | Unique job identifier. |
 | `interval` | string | required | `Nm` (minutes) or `Nh` (hours). |
 | `prompt` | string | required | Prompt passed to `run.sh`. |
-| `repo` | string | `""` | Target repo (e.g. `"github.com/owner/repo"`). When omitted, the agent targets the Forge repo itself. |
+| `repo` | string | required | Target repo passed through as `--repo` to `run.sh` (for example `"github.com/owner/repo"` or an absolute local path). |
 | `contexts` | string[] | `[]` | List of context file paths relative to repo root, each passed as `--context` to `run.sh`. |
 | `enabled` | bool | `true` | Set `false` to remove from crontab without deleting config. |
 
@@ -47,7 +48,7 @@ Source of truth for desired cron state. Checked into git.
 ./agent-kernel/cron/manage.py apply
 
 # Imperative — one-off add/remove
-./agent-kernel/cron/manage.py add <id> <interval> "<prompt>"
+./agent-kernel/cron/manage.py add <id> <interval> "<prompt>" --repo github.com/owner/repo
 ./agent-kernel/cron/manage.py remove <id>
 
 # Inspect
@@ -62,6 +63,8 @@ Source of truth for desired cron state. Checked into git.
 `cron-state.json` is auto-generated and gitignored. It tracks what's actually installed in crontab so `list` works without parsing `crontab -l`.
 
 If the state file gets deleted or out of sync, just run `apply` — it reconverges.
+
+When a job includes `repo`, `run.sh` creates that job's worktree at `<target-repo>/.worktrees/<id>`.
 
 ## Logs
 
