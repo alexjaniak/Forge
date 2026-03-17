@@ -124,7 +124,7 @@ forge cron apply
 Add a single cron job.
 
 ```
-forge cron add ID INTERVAL PROMPT [--agentic] [--workspace] [--context TEXT] [--repo REPO]
+forge cron add ID INTERVAL PROMPT [--context TEXT] --repo REPO
 ```
 
 **Arguments:**
@@ -139,14 +139,14 @@ forge cron add ID INTERVAL PROMPT [--agentic] [--workspace] [--context TEXT] [--
 
 | Flag | Description |
 |------|-------------|
-| `--agentic` | Enable tool use |
-| `--workspace` | Run in isolated git worktree |
 | `--context TEXT` | Context file path (repeatable) |
 | `--repo REPO` | Target repo |
 
 ```bash
-forge cron add summary-bot 1h "Summarize recent activity" --context contexts/IDENTITY.md
+forge cron add summary-bot 1h "Summarize recent activity" --context contexts/IDENTITY.md --repo github.com/owner/repo
 ```
+
+Forge-managed cron jobs always run with tool access in an isolated worktree named after the job ID under the target repo, so those runtime behaviors are no longer exposed as flags.
 
 #### `forge cron remove`
 
