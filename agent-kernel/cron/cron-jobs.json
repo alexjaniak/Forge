@@ -5,7 +5,7 @@
       "id": "planner-01",
       "interval": "5m",
       "prompt": "Review the current state of GitHub issues and PRs. Process any new worker handoff comments. Create new issues or adjust existing ones to progress toward the project goals. Spawn subplanner issues if scope is too large.",
-      "contexts": ["contexts/IDENTITY.md", "contexts/PLANNER.md", "contexts/REVIEWER.md", "contexts/CONSTRAINTS.md", "contexts/LABELS.md", "contexts/HANDOFF.md", "contexts/WORKSPACE.md"],
+      "contexts": ["contexts/IDENTITY.md", "contexts/PLANNER.md", "contexts/ASSIGNED_ISSUE.md", "contexts/REVIEWER.md", "contexts/CONSTRAINTS.md", "contexts/LABELS.md", "contexts/HANDOFF.md", "contexts/WORKSPACE.md"],
       "agentic": true,
       "workspace": true,
       "repo": "github.com/alexjaniak/Forge"
@@ -14,7 +14,7 @@
       "id": "worker-01",
       "interval": "3m",
       "prompt": "Find one issue labeled status:ready-for-work and role:worker. Read it and all its comments. Implement the task, open a PR, and post a handoff comment on the issue.",
-      "contexts": ["contexts/IDENTITY.md", "contexts/WORKER.md", "contexts/CONSTRAINTS.md", "contexts/LABELS.md", "contexts/HANDOFF.md", "contexts/WORKSPACE.md"],
+      "contexts": ["contexts/IDENTITY.md", "contexts/WORKER.md", "contexts/ASSIGNED_ISSUE.md", "contexts/CONSTRAINTS.md", "contexts/LABELS.md", "contexts/HANDOFF.md", "contexts/WORKSPACE.md"],
       "agentic": true,
       "workspace": true,
       "repo": "github.com/alexjaniak/Forge"
@@ -23,7 +23,7 @@
       "id": "worker-02",
       "interval": "3m",
       "prompt": "Find one issue labeled status:ready-for-work and role:worker. Read it and all its comments. Implement the task, open a PR, and post a handoff comment on the issue.",
-      "contexts": ["contexts/IDENTITY.md", "contexts/WORKER.md", "contexts/CONSTRAINTS.md", "contexts/LABELS.md", "contexts/HANDOFF.md", "contexts/WORKSPACE.md"],
+      "contexts": ["contexts/IDENTITY.md", "contexts/WORKER.md", "contexts/ASSIGNED_ISSUE.md", "contexts/CONSTRAINTS.md", "contexts/LABELS.md", "contexts/HANDOFF.md", "contexts/WORKSPACE.md"],
       "agentic": true,
       "workspace": true,
       "repo": "github.com/alexjaniak/Forge"
@@ -32,7 +32,7 @@
       "id": "planner-02",
       "interval": "5m",
       "prompt": "Review the current state of GitHub issues and PRs. Process any new worker handoff comments. Create new issues or adjust existing ones to progress toward the project goals. Spawn subplanner issues if scope is too large.",
-      "contexts": ["contexts/IDENTITY.md", "contexts/PLANNER.md", "contexts/REVIEWER.md", "contexts/CONSTRAINTS.md", "contexts/LABELS.md", "contexts/HANDOFF.md", "contexts/WORKSPACE.md"],
+      "contexts": ["contexts/IDENTITY.md", "contexts/PLANNER.md", "contexts/ASSIGNED_ISSUE.md", "contexts/REVIEWER.md", "contexts/CONSTRAINTS.md", "contexts/LABELS.md", "contexts/HANDOFF.md", "contexts/WORKSPACE.md"],
       "agentic": true,
       "workspace": true,
       "repo": "github.com/alexjaniak/Forge"
@@ -41,7 +41,7 @@
       "id": "worker-03",
       "interval": "3m",
       "prompt": "Find one issue labeled status:ready-for-work and role:worker. Read it and all its comments. Implement the task, open a PR, and post a handoff comment on the issue.",
-      "contexts": ["contexts/IDENTITY.md", "contexts/WORKER.md", "contexts/CONSTRAINTS.md", "contexts/LABELS.md", "contexts/HANDOFF.md", "contexts/WORKSPACE.md"],
+      "contexts": ["contexts/IDENTITY.md", "contexts/WORKER.md", "contexts/ASSIGNED_ISSUE.md", "contexts/CONSTRAINTS.md", "contexts/LABELS.md", "contexts/HANDOFF.md", "contexts/WORKSPACE.md"],
       "agentic": true,
       "workspace": true,
       "repo": "github.com/alexjaniak/Forge"
@@ -50,7 +50,7 @@
       "id": "planner-03",
       "interval": "5m",
       "prompt": "Review the current state of GitHub issues and PRs. Process any new worker handoff comments. Create new issues or adjust existing ones to progress toward the project goals. Spawn subplanner issues if scope is too large.",
-      "contexts": ["contexts/IDENTITY.md", "contexts/PLANNER.md", "contexts/REVIEWER.md", "contexts/CONSTRAINTS.md", "contexts/LABELS.md", "contexts/HANDOFF.md", "contexts/WORKSPACE.md"],
+      "contexts": ["contexts/IDENTITY.md", "contexts/PLANNER.md", "contexts/ASSIGNED_ISSUE.md", "contexts/REVIEWER.md", "contexts/CONSTRAINTS.md", "contexts/LABELS.md", "contexts/HANDOFF.md", "contexts/WORKSPACE.md"],
       "agentic": true,
       "workspace": true,
       "repo": "github.com/alexjaniak/Forge"
@@ -59,7 +59,7 @@
       "id": "worker-04",
       "interval": "3m",
       "prompt": "Find one issue labeled status:ready-for-work and role:worker. Read it and all its comments. Implement the task, open a PR, and post a handoff comment on the issue.",
-      "contexts": ["contexts/IDENTITY.md", "contexts/WORKER.md", "contexts/CONSTRAINTS.md", "contexts/LABELS.md", "contexts/HANDOFF.md", "contexts/WORKSPACE.md"],
+      "contexts": ["contexts/IDENTITY.md", "contexts/WORKER.md", "contexts/ASSIGNED_ISSUE.md", "contexts/CONSTRAINTS.md", "contexts/LABELS.md", "contexts/HANDOFF.md", "contexts/WORKSPACE.md"],
       "agentic": true,
       "workspace": true,
       "repo": "github.com/alexjaniak/Forge"
@@ -68,7 +68,7 @@
       "id": "planner-04",
       "interval": "5m",
       "prompt": "Review the current state of GitHub issues and PRs. Process any new worker handoff comments. Create new issues or adjust existing ones to progress toward the project goals. Spawn subplanner issues if scope is too large.",
-      "contexts": ["contexts/IDENTITY.md", "contexts/PLANNER.md", "contexts/REVIEWER.md", "contexts/CONSTRAINTS.md", "contexts/LABELS.md", "contexts/HANDOFF.md", "contexts/WORKSPACE.md"],
+      "contexts": ["contexts/IDENTITY.md", "contexts/PLANNER.md", "contexts/ASSIGNED_ISSUE.md", "contexts/REVIEWER.md", "contexts/CONSTRAINTS.md", "contexts/LABELS.md", "contexts/HANDOFF.md", "contexts/WORKSPACE.md"],
       "agentic": true,
       "workspace": true,
       "repo": "github.com/alexjaniak/Forge"
