@@ -1,6 +1,6 @@
 # Forge Dashboard
 
-Next.js web dashboard for the Forge agent orchestration platform. Displays agent status, streams live logs via SSE, and shows GitHub events.
+Next.js web dashboard for the Forge agent orchestration platform. Displays agent status, streams live logs via SSE, shows GitHub events, and lists live-updating GitHub issues.
 
 ## Setup
 
@@ -35,8 +35,10 @@ src/app/
     │   ├── route.ts          # GET — all agent logs (batch)
     │   ├── [agentId]/route.ts    # GET — single agent logs with offset
     │   └── stream/route.ts       # GET — SSE live log streaming
-    └── events/
-        └── route.ts          # GET — GitHub events from JSONL
+    ├── events/
+    │   └── route.ts          # GET — GitHub events from JSONL
+    └── issues/
+        └── route.ts          # GET — GitHub issues with 5s cache
 ```
 
 ### Components
@@ -47,6 +49,7 @@ src/app/
 | **AgentPanel** | `agent-panel.tsx` | Lists agents with status badges (STAGED, ACTIVE, MODIFIED, ORPHAN), role badges, interval/countdown info. Supports add, delete, force-run, apply, and clear actions. Auto-refreshes every 5s. |
 | **LogsPanel** | `logs-panel.tsx` | Streams logs via SSE (`/api/logs/stream`) with polling fallback (5s). Tabs for each agent plus an "All" view. Parses log blocks delimited by `=== RUN ===` / `=== END RUN ===` markers. Max 200 blocks displayed. |
 | **EventsPanel** | `events-panel.tsx` | Polls `/api/events` every 3s. Shows GitHub event cards with action badges (color-coded), issue numbers, actors, labels. Max 50 events displayed. |
+| **IssuesPanel** | `issues-panel.tsx` | Polls `/api/issues` every 10s. Shows GitHub issues with label badges (color-coded by status/role/type). Filterable by status and role labels. Audio alert for new `role:admin` issues. |
 
 ### Data Flow
 
@@ -57,6 +60,7 @@ agent-kernel/cron/cron-jobs.json  → GET /api/agents       → AgentPanel
 agent-kernel/cron/cron-state.json → GET /api/agents       → AgentPanel
 agent-kernel/logs/{id}.log        → GET /api/logs/stream  → LogsPanel (SSE)
 apps/webhook-monitor/events.jsonl → GET /api/events       → EventsPanel
+gh issue list (via CLI)             → GET /api/issues       → IssuesPanel
 templates/{type}.json             → POST /api/agents      → (agent creation)
 .worktrees/{id}/.agent.lock       → GET /api/agents       → (running detection)
 ```
@@ -107,6 +111,10 @@ Server-Sent Events endpoint for live log streaming. Uses `fs.watch()` on log fil
 ### `GET /api/events?offset={n}`
 
 Returns up to 50 GitHub events from `apps/webhook-monitor/events.jsonl`, parsed from newline-delimited JSON.
+
+### `GET /api/issues`
+
+Returns open GitHub issues via `gh issue list`. Response cached server-side for 5s. Returns `{ issues, repo }`.
 
 ## Environment Variables
 
