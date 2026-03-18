@@ -40,8 +40,12 @@ export async function POST() {
     try {
       const raw = fs.readFileSync(cronStatePath(), "utf-8");
       state = JSON.parse(raw);
-    } catch {
-      // no applied state file yet
+    } catch (err: unknown) {
+      if (err && typeof err === "object" && "code" in err && err.code === "ENOENT") {
+        // no applied state file yet
+      } else {
+        throw err;
+      }
     }
 
     // Read current config to preserve stagger setting
