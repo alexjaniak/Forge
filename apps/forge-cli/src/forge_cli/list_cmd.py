@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 
 import click
 
+from forge_cli.diff_cmd import get_modified_fields
 from forge_cli.paths import _get_manage
 
 
@@ -56,7 +57,7 @@ def list_cmd():
 
     modified_ids = set()
     for agent_id in common_ids:
-        if staged_jobs[agent_id]["interval"] != active_jobs[agent_id].get("interval"):
+        if get_modified_fields(staged_jobs[agent_id], active_jobs[agent_id]):
             modified_ids.add(agent_id)
 
     has_changes = new_ids or deleted_ids or modified_ids
@@ -71,11 +72,11 @@ def list_cmd():
                 f"        {click.style('new:', fg='green')}      {click.style(agent_id, fg='green')}"
             )
         for agent_id in sorted(modified_ids):
-            old_interval = active_jobs[agent_id].get("interval", "?")
-            new_interval = staged_jobs[agent_id]["interval"]
+            changed_fields = [field for field, _, _ in get_modified_fields(staged_jobs[agent_id], active_jobs[agent_id])]
+            summary = ", ".join(changed_fields)
             click.echo(
                 f"        {click.style('modified:', fg='yellow')} {click.style(agent_id, fg='yellow')}"
-                f"  {click.style(f'(interval: {old_interval} → {new_interval})', fg='yellow')}"
+                f"  {click.style(f'(fields: {summary})', fg='yellow')}"
             )
         for agent_id in sorted(deleted_ids):
             click.echo(
