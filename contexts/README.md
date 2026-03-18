@@ -18,6 +18,6 @@ Markdown files that define agent behavior, constraints, and protocols. They are 
 
 ## How contexts compose
 
-Each agent role uses a subset of these files. Templates (`../templates/*.json`) declare a `contexts` array that lists which context files to include. At run time, the selected contexts are concatenated into the agent's system prompt.
+Each agent role uses a subset of these files. Templates (`../templates/*.example.json` in git, `../templates/*.json` locally) declare a `contexts` array that lists which context files to include. At run time, the selected contexts are concatenated into the agent's system prompt.
 
 For example, a worker agent receives `IDENTITY`, `WORKER`, `CONSTRAINTS`, `LABELS`, `HANDOFF`, and `WORKSPACE` — but not `PLANNER`, `SUPER`, or `REVIEWER`.

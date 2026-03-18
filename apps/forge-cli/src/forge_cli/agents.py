@@ -15,15 +15,23 @@ def _templates_dir():
 
 
 def _available_templates():
-    """Return dict of template_name -> file_path for all .json files in templates/."""
+    """Return dict of template_name -> file_path for local .json or tracked .example.json files."""
     tdir = _templates_dir()
     if not os.path.isdir(tdir):
         return {}
     templates = {}
     for fname in sorted(os.listdir(tdir)):
-        if fname.endswith(".json"):
+        name = None
+        if fname.endswith(".example.json"):
+            name = fname[:-13]
+        elif fname.endswith(".json"):
             name = fname[:-5]
-            templates[name] = os.path.join(tdir, fname)
+        if name is None:
+            continue
+        path = os.path.join(tdir, fname)
+        # Prefer local working copies over tracked examples when both exist.
+        if name not in templates or fname.endswith(".json"):
+            templates[name] = path
     return templates
 
 
@@ -45,8 +53,9 @@ def _next_id(agent_type, existing_ids):
 @click.argument("agent_type", required=False, default=None)
 @click.option("--id", "agent_id", default=None, help="Custom agent ID (default: auto-generate).")
 @click.option("--interval", default=None, help="Override template interval (e.g. 5m, 1h).")
+@click.option("--model", default=None, help="Override template model (e.g. gpt-5.4).")
 @click.option("--list", "list_templates", is_flag=True, help="List available templates.")
-def add(agent_type, agent_id, interval, list_templates):
+def add(agent_type, agent_id, interval, model, list_templates):
     """Add an agent from a template.
 
     AGENT_TYPE is the template name (e.g. worker, planner).
@@ -92,6 +101,11 @@ def add(agent_type, agent_id, interval, list_templates):
     job["contexts"] = template.get("contexts", [])
     job["agentic"] = template.get("agentic", False)
     job["workspace"] = template.get("workspace", False)
+    template_model = template.get("model", "")
+    if model:
+        job["model"] = model
+    elif template_model:
+        job["model"] = template_model
     if "repo" in template:
         job["repo"] = template["repo"]
 
@@ -110,6 +124,8 @@ def add(agent_type, agent_id, interval, list_templates):
         click.echo(f"  contexts:  {', '.join(job['contexts'])}")
     click.echo(f"  agentic:   {'yes' if job['agentic'] else 'no'}")
     click.echo(f"  workspace: {'yes' if job['workspace'] else 'no'}")
+    if job.get("model"):
+        click.echo(f"  model:     {job['model']}")
     click.echo()
     click.echo("Run `forge apply` to activate.")
 

@@ -25,6 +25,7 @@ Source of truth for desired cron state. Checked into git.
       "prompt": "Check for stale PRs",
       "agentic": true,
       "contexts": ["contexts/IDENTITY.md", "contexts/WORKER.md"],
+      "model": "gpt-5.4",
       "workspace": true,
       "repo": "github.com/owner/repo",
       "enabled": true
@@ -41,6 +42,7 @@ Source of truth for desired cron state. Checked into git.
 | `agentic` | bool | `false` | Enable tool use (`--agentic`). |
 | `repo` | string | `""` | Target repo (e.g. `"github.com/owner/repo"`). When omitted, the agent targets the Forge repo itself. |
 | `contexts` | string[] | `[]` | List of context file paths relative to repo root, each passed as `--context` to `run.sh`. |
+| `model` | string | `""` | Optional model override passed to `run.sh --model`. |
 | `workspace` | bool | `false` | Run the agent in an isolated git worktree (`--workspace <id>`). |
 | `enabled` | bool | `true` | Set `false` to remove from crontab without deleting config. |
 
@@ -51,7 +53,7 @@ Source of truth for desired cron state. Checked into git.
 ./agent-kernel/cron/manage.py apply
 
 # Imperative — one-off add/remove
-./agent-kernel/cron/manage.py add <id> <interval> "<prompt>" [--agentic]
+./agent-kernel/cron/manage.py add <id> <interval> "<prompt>" [--agentic] [--model <model>]
 ./agent-kernel/cron/manage.py remove <id>
 
 # Inspect
@@ -66,6 +68,8 @@ Source of truth for desired cron state. Checked into git.
 `cron-state.json` is auto-generated and gitignored. It tracks what's actually installed in crontab so `list` works without parsing `crontab -l`.
 
 If the state file gets deleted or out of sync, just run `apply` — it reconverges.
+
+Agent definitions often originate from `forge add`, which now reads tracked `templates/*.example.json` defaults and local `templates/*.json` working copies. The tracked examples should keep the generic `github.com/owner/repo` placeholder; local working copies are where repo-specific values belong.
 
 ## Logs
 
