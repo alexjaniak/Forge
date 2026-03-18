@@ -86,6 +86,7 @@ def build_cron_command(job_id, prompt, agentic, contexts=None, workspace=False, 
     runtime = runtime or "claude"
     env_prefix = f"AGENT_RUNTIME={runtime} " if runtime != "claude" else ""
     cmd = f"mkdir -p {LOGS_DIR} && cd {REPO_DIR} && {env_prefix}./agent-kernel/run.sh"
+    cmd += f" --log-id {job_id}"
     if agentic:
         cmd += " --agentic"
     if workspace:
@@ -96,7 +97,7 @@ def build_cron_command(job_id, prompt, agentic, contexts=None, workspace=False, 
         cmd += f" --model '{model}'"
     for ctx in (contexts or []):
         cmd += f" --context {ctx}"
-    cmd += f' "{prompt}" >> {LOGS_DIR}/{job_id}.log 2>&1'
+    cmd += f' "{prompt}"'
     return cmd
 
 
@@ -799,6 +800,7 @@ def cmd_run(args):
         os.environ["AGENT_RUNTIME"] = runtime
 
     cmd = [os.path.join(REPO_DIR, "agent-kernel", "run.sh")]
+    cmd += ["--log-id", job["id"]]
     if job.get("agentic"):
         cmd.append("--agentic")
     if job.get("workspace"):
