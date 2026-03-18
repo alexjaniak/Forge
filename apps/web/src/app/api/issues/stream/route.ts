@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { eventsPath } from "@/lib/paths";
+import { eventsPath, getForgeRoot } from "@/lib/paths";
 import {
   getEmptyIssueSnapshot,
   getIssueSnapshot,
@@ -30,12 +30,15 @@ function isRelevantIssueEvent(line: string): boolean {
 }
 
 export async function GET(request: Request) {
-  const filePath = eventsPath();
-  const dirPath = path.dirname(filePath);
-  const fileName = path.basename(filePath);
+  const eventsFilePath = eventsPath();
+  const eventsDirPath = path.dirname(eventsFilePath);
+  const eventsFileName = path.basename(eventsFilePath);
+  const locksDirPath = path.join(getForgeRoot(), "locks/issues");
 
-  let fileWatcher: fs.FSWatcher | null = null;
-  let dirWatcher: fs.FSWatcher | null = null;
+  let eventsFileWatcher: fs.FSWatcher | null = null;
+  let eventsDirWatcher: fs.FSWatcher | null = null;
+  let locksDirWatcher: fs.FSWatcher | null = null;
+  const lockInfoDirWatchers = new Map<string, fs.FSWatcher>();
   let keepalive: NodeJS.Timeout | null = null;
   let closed = false;
   let offset = 0;
@@ -52,23 +55,41 @@ export async function GET(request: Request) {
       keepalive = null;
     }
 
-    if (fileWatcher) {
+    if (eventsFileWatcher) {
       try {
-        fileWatcher.close();
+        eventsFileWatcher.close();
       } catch {
         // ignore cleanup errors
       }
-      fileWatcher = null;
+      eventsFileWatcher = null;
     }
 
-    if (dirWatcher) {
+    if (eventsDirWatcher) {
       try {
-        dirWatcher.close();
+        eventsDirWatcher.close();
       } catch {
         // ignore cleanup errors
       }
-      dirWatcher = null;
+      eventsDirWatcher = null;
     }
+
+    if (locksDirWatcher) {
+      try {
+        locksDirWatcher.close();
+      } catch {
+        // ignore cleanup errors
+      }
+      locksDirWatcher = null;
+    }
+
+    for (const watcher of lockInfoDirWatchers.values()) {
+      try {
+        watcher.close();
+      } catch {
+        // ignore cleanup errors
+      }
+    }
+    lockInfoDirWatchers.clear();
   }
 
   async function sendSnapshot(
@@ -113,28 +134,28 @@ export async function GET(request: Request) {
     }
   }
 
-  function watchFile(onChange: () => void) {
-    if (fileWatcher) {
+  function watchEventsFile(onChange: () => void) {
+    if (eventsFileWatcher) {
       try {
-        fileWatcher.close();
+        eventsFileWatcher.close();
       } catch {
         // ignore cleanup errors
       }
     }
 
     try {
-      fileWatcher = fs.watch(filePath, () => {
+      eventsFileWatcher = fs.watch(eventsFilePath, () => {
         onChange();
       });
     } catch {
-      fileWatcher = null;
+      eventsFileWatcher = null;
     }
   }
 
   function readRelevantChanges(): boolean {
     let fileSize = 0;
     try {
-      fileSize = fs.statSync(filePath).size;
+      fileSize = fs.statSync(eventsFilePath).size;
     } catch {
       offset = 0;
       pendingLine = "";
@@ -151,7 +172,7 @@ export async function GET(request: Request) {
     }
 
     const bytesToRead = fileSize - offset;
-    const fd = fs.openSync(filePath, "r");
+    const fd = fs.openSync(eventsFilePath, "r");
     const buffer = Buffer.alloc(bytesToRead);
 
     try {
@@ -168,16 +189,61 @@ export async function GET(request: Request) {
     return lines.some((line) => line.trim() !== "" && isRelevantIssueEvent(line));
   }
 
+  function refreshLockInfoDirWatchers(onChange: () => void) {
+    let entries: fs.Dirent[] = [];
+    try {
+      entries = fs.readdirSync(locksDirPath, { withFileTypes: true });
+    } catch {
+      entries = [];
+    }
+
+    const nextWatchPaths = new Set(
+      entries
+        .filter((entry) => entry.isDirectory() && /^\d+\.lock$/.test(entry.name))
+        .map((entry) => path.join(locksDirPath, entry.name))
+    );
+
+    for (const [watchPath, watcher] of lockInfoDirWatchers) {
+      if (nextWatchPaths.has(watchPath)) {
+        continue;
+      }
+      try {
+        watcher.close();
+      } catch {
+        // ignore cleanup errors
+      }
+      lockInfoDirWatchers.delete(watchPath);
+    }
+
+    for (const watchPath of nextWatchPaths) {
+      if (lockInfoDirWatchers.has(watchPath)) {
+        continue;
+      }
+      try {
+        const watcher = fs.watch(watchPath, (_eventType, filename) => {
+          if (filename && filename !== "info.json") {
+            return;
+          }
+          onChange();
+        });
+        lockInfoDirWatchers.set(watchPath, watcher);
+      } catch {
+        // ignore watch setup errors
+      }
+    }
+  }
+
   const stream = new ReadableStream({
     start(controller) {
       try {
-        fs.mkdirSync(dirPath, { recursive: true });
+        fs.mkdirSync(eventsDirPath, { recursive: true });
+        fs.mkdirSync(locksDirPath, { recursive: true });
       } catch {
         // ignore setup errors
       }
 
       try {
-        offset = fs.statSync(filePath).size;
+        offset = fs.statSync(eventsFilePath).size;
       } catch {
         offset = 0;
       }
@@ -190,18 +256,33 @@ export async function GET(request: Request) {
         void sendSnapshot(controller, true);
       };
 
-      watchFile(handleChange);
+      const handleLockChange = () => {
+        refreshLockInfoDirWatchers(handleLockChange);
+        invalidateIssueSnapshot();
+        void sendSnapshot(controller, true);
+      };
+
+      watchEventsFile(handleChange);
+      refreshLockInfoDirWatchers(handleLockChange);
 
       try {
-        dirWatcher = fs.watch(dirPath, (_eventType, filename) => {
-          if (filename && filename !== fileName) {
+        eventsDirWatcher = fs.watch(eventsDirPath, (_eventType, filename) => {
+          if (filename && filename !== eventsFileName) {
             return;
           }
-          watchFile(handleChange);
+          watchEventsFile(handleChange);
           handleChange();
         });
       } catch {
-        dirWatcher = null;
+        eventsDirWatcher = null;
+      }
+
+      try {
+        locksDirWatcher = fs.watch(locksDirPath, () => {
+          handleLockChange();
+        });
+      } catch {
+        locksDirWatcher = null;
       }
 
       keepalive = setInterval(() => {
