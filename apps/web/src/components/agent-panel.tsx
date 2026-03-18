@@ -22,6 +22,13 @@ interface Agent {
   branch: string | null;
   status: AgentStatus;
   stagedInterval?: string;
+  lockedIssue?: {
+    number: number;
+    claimedAt: string;
+    repo: string;
+    repoUrl: string | null;
+    issueUrl: string | null;
+  };
 }
 
 function relativeTime(iso: string): string {
@@ -205,6 +212,20 @@ function AgentCard({
         <span title={agent.lastRun ? `Last run: ${agent.lastRun}` : undefined}>
           {agent.lastRun ? relativeTime(agent.lastRun) : "\u2014"}
         </span>
+        {agent.lockedIssue?.issueUrl && (
+          <>
+            <span className="text-muted-foreground">issue</span>
+            <a
+              href={agent.lockedIssue.issueUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent-cyan hover:underline truncate"
+              title={`Open issue #${agent.lockedIssue.number}`}
+            >
+              #{agent.lockedIssue.number}
+            </a>
+          </>
+        )}
         <span className="text-muted-foreground">next</span>
         <span className={agent.nextRun ? "text-accent-cyan" : ""} title={agent.nextRun ? `Next run: ${agent.nextRun}` : undefined}>
           {agent.nextRun ? countdown(agent.nextRun) : "\u2014"}
@@ -270,6 +291,20 @@ function AddAgentModal({
   const [loading, setLoading] = useState(true);
   const backdropRef = useRef<HTMLDivElement>(null);
 
+  const getAutoId = useCallback(
+    (type: string) => {
+      const existing = agents
+        .filter((a) => a.role === type)
+        .map((a) => {
+          const match = a.id.match(new RegExp(`^${type}-(\\d+)$`));
+          return match ? parseInt(match[1], 10) : 0;
+        });
+      const next = existing.length > 0 ? Math.max(...existing) + 1 : 1;
+      return `${type}-${String(next).padStart(2, "0")}`;
+    },
+    [agents]
+  );
+
   useEffect(() => {
     fetch("/api/templates")
       .then((res) => res.json())
@@ -288,7 +323,7 @@ function AddAgentModal({
       })
       .catch(() => setError("Failed to load templates"))
       .finally(() => setLoading(false));
-  }, []);
+  }, [getAutoId]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -308,20 +343,6 @@ function AddAgentModal({
     setAgentId(getAutoId(tpl.type));
     setError(null);
   };
-
-  const getAutoId = useCallback(
-    (type: string) => {
-      const existing = agents
-        .filter((a) => a.role === type)
-        .map((a) => {
-          const match = a.id.match(new RegExp(`^${type}-(\\d+)$`));
-          return match ? parseInt(match[1], 10) : 0;
-        });
-      const next = existing.length > 0 ? Math.max(...existing) + 1 : 1;
-      return `${type}-${String(next).padStart(2, "0")}`;
-    },
-    [agents]
-  );
 
   const handleSubmit = async () => {
     if (!selected) return;
