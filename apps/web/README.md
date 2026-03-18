@@ -47,14 +47,14 @@ src/app/
 |-----------|------|---------|
 | **ResizableLayout** | `resizable-layout.tsx` | Three-panel layout: sidebar (agents), top-right (logs), bottom-right (events). Panels are resizable with drag handles and collapsible on double-click. Sizes persist to localStorage. |
 | **AgentPanel** | `agent-panel.tsx` | Lists agents with status badges (STAGED, ACTIVE, MODIFIED, ORPHAN), role badges, interval/countdown info. Supports add, delete, force-run, apply, and clear actions. Auto-refreshes every 5s. |
-| **LogsPanel** | `logs-panel.tsx` | Streams logs via SSE (`/api/logs/stream`) with polling fallback (5s). Tabs for each agent plus an "All" view. Parses log blocks delimited by `=== RUN ===` / `=== END RUN ===` markers. Max 200 blocks displayed. |
-| **EventsPanel** | `events-panel.tsx` | Polls `/api/events` every 3s. Shows GitHub event cards with action badges (color-coded), issue numbers, actors, labels. Max 50 events displayed. |
-| **IssuesPanel** | `issues-panel.tsx` | Connects to `/api/issues/stream` for live issue snapshots with `/api/issues` polling fallback. Shows GitHub issues with label badges (color-coded by status/role/type). Filterable by status, role, and type labels. Audio alert only when an issue newly gains `role:admin`. |
+| **LogsPanel** | `logs-panel.tsx` | Streams logs via SSE (`/api/logs/stream`) with polling fallback (5s). The dashboard refresh control triggers an immediate refresh even when Logs is not the active tab. Tabs for each agent plus an "All" view. Parses log blocks delimited by `=== RUN ===` / `=== END RUN ===` markers. Max 200 blocks displayed. |
+| **EventsPanel** | `events-panel.tsx` | Polls `/api/events` every 3s and refreshes immediately when the dashboard refresh control is clicked, even if Events is inactive. Shows GitHub event cards with action badges (color-coded), issue numbers, actors, labels. Max 50 events displayed. |
+| **IssuesPanel** | `issues-panel.tsx` | Connects to `/api/issues/stream` for live issue snapshots with `/api/issues` polling fallback. The dashboard refresh control triggers an immediate refresh without disabling the live stream path, even when Issues is inactive. Shows GitHub issues with label badges (color-coded by status/role/type). Filterable by status, role, and type labels. Audio alert only when an issue newly gains `role:admin`. |
 
 ### Dashboard UX
 
-- The right-panel tab bar persists the active tab in the URL hash, so reloads and shared links reopen the same Logs, Events, or Issues view.
-- The manual refresh control in the tab bar triggers immediate refreshes for Issues, Events, and Logs without waiting for their polling intervals.
+- The right-side tab selection persists in the URL hash, so reloads and shared links reopen the same Logs, Events, or Issues tab.
+- The dashboard refresh control immediately refreshes Logs, Events, and Issues, even when some of those tabs are inactive.
 
 ### Data Flow
 

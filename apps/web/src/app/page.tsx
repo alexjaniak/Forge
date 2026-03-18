@@ -85,7 +85,6 @@ function RightPanel({ refreshKey, onRefresh }: { refreshKey: number; onRefresh: 
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Tab bar */}
       <div className="flex items-center gap-1 px-4 py-1 bg-surface border-b border-border shrink-0">
         <TabButton
           label="Logs"
@@ -107,15 +106,16 @@ function RightPanel({ refreshKey, onRefresh }: { refreshKey: number; onRefresh: 
         </div>
       </div>
 
-      {/* Active panel */}
-      <div className="flex-1 overflow-hidden min-h-0">
-        {activeTab === "logs" ? (
+      <div className="flex-1 overflow-hidden min-h-0 relative">
+        <div className={activeTab === "logs" ? "h-full" : "hidden h-full"}>
           <LogsPanel refreshKey={refreshKey} />
-        ) : activeTab === "events" ? (
+        </div>
+        <div className={activeTab === "events" ? "h-full" : "hidden h-full"}>
           <EventsPanel refreshKey={refreshKey} />
-        ) : (
+        </div>
+        <div className={activeTab === "issues" ? "h-full" : "hidden h-full"}>
           <IssuesPanel refreshKey={refreshKey} />
-        )}
+        </div>
       </div>
     </div>
   );
