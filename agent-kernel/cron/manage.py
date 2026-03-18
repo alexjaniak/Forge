@@ -267,6 +267,11 @@ def _bulk_workspace_refs():
                 continue
             seen.add(ref)
             job_refs.append(ref)
+    for ref in _discover_running_workspace_refs():
+        if ref in seen:
+            continue
+        seen.add(ref)
+        job_refs.append(ref)
     return job_refs
 
 
@@ -295,7 +300,19 @@ def _configured_workspace_repos():
 def _target_workspace_refs(agent_id):
     configured_refs = [ref for ref in _configured_workspace_jobs() if ref[0] == agent_id]
     if configured_refs:
-        return configured_refs
+        refs = list(configured_refs)
+        seen = set(refs)
+        for ref in _discover_running_workspace_refs():
+            if ref[0] != agent_id or ref in seen:
+                continue
+            seen.add(ref)
+            refs.append(ref)
+        return refs
+
+    discovered_refs = [ref for ref in _discover_running_workspace_refs() if ref[0] == agent_id]
+    if discovered_refs:
+        return discovered_refs
+
     return [(agent_id, repo) for repo in _configured_workspace_repos()]
 
 
@@ -322,6 +339,28 @@ def _read_process_command(pid):
         return None
     command = result.stdout.strip()
     return command or None
+
+
+def _list_processes():
+    result = subprocess.run(
+        ["ps", "-axo", "pid=,command="],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return []
+
+    processes = []
+    for line in result.stdout.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        parts = stripped.split(None, 1)
+        if len(parts) != 2 or not parts[0].isdigit():
+            continue
+        processes.append((int(parts[0]), parts[1]))
+    return processes
 
 
 def _read_process_cwd(pid):
@@ -409,6 +448,19 @@ def _matches_managed_run(job_id, pid, command, repo=""):
         "pid": pid,
         "command": command,
     }
+
+
+def _discover_running_workspace_refs():
+    refs = set()
+    for pid, command in _list_processes():
+        parsed = _parse_run_command(command)
+        if not parsed or not parsed["workspace_id"]:
+            continue
+        repo = parsed["repo"] or ""
+        if not _matches_managed_run(parsed["workspace_id"], pid, command, repo):
+            continue
+        refs.add((parsed["workspace_id"], repo))
+    return sorted(refs)
 
 
 def find_managed_runs(agent_id=None):

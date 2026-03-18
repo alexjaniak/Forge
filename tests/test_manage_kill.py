@@ -102,6 +102,8 @@ class ManageKillTests(unittest.TestCase):
         ), patch.object(
             manage, "_list_workspace_ids", return_value=["worker-02", "worker-03", "worker-04"]
         ), patch.object(
+            manage, "_discover_running_workspace_refs", return_value=[]
+        ), patch.object(
             manage,
             "_read_lock_pid",
             side_effect=lambda path: {
@@ -143,6 +145,8 @@ class ManageKillTests(unittest.TestCase):
         ), patch(
             "builtins.open", mock_open(read_data=manage.json.dumps(cron_jobs))
         ), patch.object(
+            manage, "_discover_running_workspace_refs", return_value=[]
+        ), patch.object(
             manage,
             "_read_lock_pid",
             side_effect=lambda path: {
@@ -178,6 +182,8 @@ class ManageKillTests(unittest.TestCase):
         ), patch(
             "builtins.open", mock_open(read_data=manage.json.dumps(cron_jobs))
         ), patch.object(
+            manage, "_discover_running_workspace_refs", return_value=[]
+        ), patch.object(
             manage,
             "_read_lock_pid",
             side_effect=lambda path: {
@@ -201,6 +207,68 @@ class ManageKillTests(unittest.TestCase):
             ],
         )
 
+    def test_discover_running_workspace_refs_finds_live_repo_root_run(self):
+        command = (
+            "/bin/bash /tmp/forge/agent-kernel/run.sh --workspace worker-02 "
+            "--repo github.com/alexjaniak/Forge 'prompt'"
+        )
+
+        with patch.object(manage, "REPO_DIR", "/tmp/forge"), patch.object(
+            manage,
+            "_list_processes",
+            return_value=[
+                (101, command),
+                (202, "/bin/bash /tmp/other/agent-kernel/run.sh --workspace worker-03 'prompt'"),
+            ],
+        ):
+            refs = manage._discover_running_workspace_refs()
+
+        self.assertEqual(refs, [("worker-02", "github.com/alexjaniak/Forge")])
+
+    def test_find_managed_runs_uses_live_process_repo_root_for_targeted_kill_after_staged_job_removal(self):
+        cron_jobs = {
+            "jobs": [
+                {"id": "worker-03", "repo": "github.com/alexjaniak/Forge"},
+                {"id": "worker-04", "repo": "repos/demo"},
+            ]
+        }
+        command = (
+            "/bin/bash /tmp/forge/agent-kernel/run.sh --workspace worker-02 "
+            "--repo /tmp/orphaned-repo 'prompt'"
+        )
+
+        with patch.object(manage, "REPO_DIR", "/tmp/forge"), patch.object(
+            manage.os.path, "exists", return_value=True
+        ), patch(
+            "builtins.open", mock_open(read_data=manage.json.dumps(cron_jobs))
+        ), patch.object(
+            manage,
+            "_list_processes",
+            return_value=[(101, command)],
+        ), patch.object(
+            manage,
+            "_read_lock_pid",
+            side_effect=lambda path: {
+                "/tmp/orphaned-repo/.worktrees/worker-02/.agent.lock": 101,
+            }.get(path),
+        ), patch.object(
+            manage,
+            "_read_process_command",
+            return_value=command,
+        ):
+            runs = manage.find_managed_runs(agent_id="worker-02")
+
+        self.assertEqual(
+            runs,
+            [
+                {
+                    "agent_id": "worker-02",
+                    "pid": 101,
+                    "command": command,
+                }
+            ],
+        )
+
     def test_find_managed_runs_scans_configured_repo_roots_for_bulk_kill(self):
         cron_jobs = {
             "jobs": [
@@ -214,6 +282,8 @@ class ManageKillTests(unittest.TestCase):
             manage.os.path, "exists", return_value=True
         ), patch(
             "builtins.open", mock_open(read_data=manage.json.dumps(cron_jobs))
+        ), patch.object(
+            manage, "_discover_running_workspace_refs", return_value=[]
         ), patch.object(
             manage,
             "_read_lock_pid",
@@ -254,6 +324,58 @@ class ManageKillTests(unittest.TestCase):
             ],
         )
 
+    def test_find_managed_runs_uses_live_process_repo_root_for_bulk_kill_after_staged_job_removal(self):
+        cron_jobs = {
+            "jobs": [
+                {"id": "worker-03", "repo": "github.com/alexjaniak/Forge"},
+            ]
+        }
+        command = (
+            "/bin/bash /tmp/forge/agent-kernel/run.sh --workspace worker-02 "
+            "--repo /tmp/orphaned-repo 'prompt'"
+        )
+
+        with patch.object(manage, "REPO_DIR", "/tmp/forge"), patch.object(
+            manage.os.path, "exists", return_value=True
+        ), patch(
+            "builtins.open", mock_open(read_data=manage.json.dumps(cron_jobs))
+        ), patch.object(
+            manage,
+            "_list_workspace_ids",
+            side_effect=lambda repo="": {
+                "github.com/alexjaniak/Forge": ["worker-03"],
+            }.get(repo, []),
+        ), patch.object(
+            manage,
+            "_list_processes",
+            return_value=[(101, command)],
+        ), patch.object(
+            manage,
+            "_read_lock_pid",
+            side_effect=lambda path: {
+                "/tmp/forge/.repos/github.com/alexjaniak/Forge/.worktrees/worker-03/.agent.lock": None,
+                "/tmp/orphaned-repo/.worktrees/worker-02/.agent.lock": 101,
+            }.get(path),
+        ), patch.object(
+            manage,
+            "_read_process_command",
+            side_effect=lambda pid: {
+                101: command,
+            }.get(pid),
+        ):
+            runs = manage.find_managed_runs()
+
+        self.assertEqual(
+            runs,
+            [
+                {
+                    "agent_id": "worker-02",
+                    "pid": 101,
+                    "command": command,
+                }
+            ],
+        )
+
     def test_find_managed_runs_uses_union_of_configured_and_discovered_workspaces(self):
         cron_jobs = {
             "jobs": [
@@ -272,6 +394,8 @@ class ManageKillTests(unittest.TestCase):
                 "": ["worker-03"],
                 "github.com/alexjaniak/Forge": ["worker-02"],
             }.get(repo, []),
+        ), patch.object(
+            manage, "_discover_running_workspace_refs", return_value=[]
         ), patch.object(
             manage,
             "_read_lock_pid",
@@ -311,6 +435,8 @@ class ManageKillTests(unittest.TestCase):
         ), patch.object(
             manage, "_list_workspace_ids", return_value=["worker-02"]
         ), patch.object(
+            manage, "_discover_running_workspace_refs", return_value=[]
+        ), patch.object(
             manage,
             "_read_lock_pid",
             return_value=101,
@@ -339,6 +465,8 @@ class ManageKillTests(unittest.TestCase):
         ), patch(
             "builtins.open", mock_open(read_data=manage.json.dumps(cron_jobs))
         ), patch.object(
+            manage, "_discover_running_workspace_refs", return_value=[]
+        ), patch.object(
             manage,
             "_read_lock_pid",
             return_value=101,
@@ -363,6 +491,8 @@ class ManageKillTests(unittest.TestCase):
             manage.os.path, "exists", return_value=True
         ), patch(
             "builtins.open", mock_open(read_data=manage.json.dumps(cron_jobs))
+        ), patch.object(
+            manage, "_discover_running_workspace_refs", return_value=[]
         ), patch.object(
             manage,
             "_read_lock_pid",
