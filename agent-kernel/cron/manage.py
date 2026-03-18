@@ -510,8 +510,7 @@ def cmd_run(args):
 
     cmd = [os.path.join(REPO_DIR, "agent-kernel", "run.sh")]
     cmd += ["--workspace", job["id"]]
-    if job.get("repo"):
-        cmd += ["--repo", job["repo"]]
+    cmd += ["--repo", require_repo(job.get("repo"), f"job '{args.id}'")]
     if job.get("model"):
         cmd += ["--model", job["model"]]
     for ctx in job.get("contexts", []):
