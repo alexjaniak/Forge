@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { getIssueSnapshot } from "@/lib/issues";
+import { getIssueErrorSnapshot, getIssueSnapshot } from "@/lib/issues";
 
 export async function GET() {
   try {
     return NextResponse.json(await getIssueSnapshot());
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ issues: [], labels: { status: [], role: [], type: [] }, repo: "", error: msg });
+    return NextResponse.json(getIssueErrorSnapshot(error));
   }
 }

@@ -8,6 +8,10 @@ export interface IssueSnapshot {
   repo: string;
 }
 
+export interface IssueErrorSnapshot extends IssueSnapshot {
+  error: string;
+}
+
 let cache: (IssueSnapshot & { ts: number }) | null = null;
 const TTL_MS = 5000;
 
@@ -45,4 +49,14 @@ export async function getIssueSnapshot(options?: {
 
   cache = { issues, labels, repo, ts: now };
   return { issues, labels, repo };
+}
+
+export function getIssueErrorSnapshot(error: unknown): IssueErrorSnapshot {
+  const message = error instanceof Error ? error.message : String(error);
+  return {
+    issues: [],
+    labels: readCanonicalIssueLabels(),
+    repo: "",
+    error: message,
+  };
 }
