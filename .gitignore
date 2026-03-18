@@ -10,5 +10,7 @@ agent-kernel/logs/*
 *.egg-info/
 __pycache__/
 apps/webhook-monitor/config.toml
+templates/*.json
+!templates/*.example.json
 events.jsonl
 apps/web/events.jsonl

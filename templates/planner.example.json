@@ -4,5 +4,6 @@
   "contexts": ["contexts/IDENTITY.md", "contexts/PLANNER.md", "contexts/ASSIGNED_ISSUE.md", "contexts/REVIEWER.md", "contexts/CONSTRAINTS.md", "contexts/LABELS.md", "contexts/HANDOFF.md", "contexts/WORKSPACE.md"],
   "agentic": true,
   "workspace": true,
-  "repo": "github.com/alexjaniak/Forge"
+  "repo": "github.com/owner/repo",
+  "model": "claude"
 }

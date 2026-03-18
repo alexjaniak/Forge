@@ -138,6 +138,15 @@ else
   rm -f apps/webhook-monitor/config.toml.bak
   info "apps/webhook-monitor/config.toml created"
 fi
+
+for role in worker planner super; do
+  if [ -f "templates/${role}.json" ]; then
+    info "templates/${role}.json exists, skipping"
+  else
+    cp "templates/${role}.example.json" "templates/${role}.json"
+    info "templates/${role}.json created"
+  fi
+done
 echo
 
 # ── Verification ─────────────────────────────────────────────────────
