@@ -1,23 +1,15 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
-import path from "path";
-import { getForgeRoot } from "@/lib/paths";
+import { availableTemplateTypes, templatePath } from "@/lib/paths";
 
 export async function GET() {
-  const templatesDir = path.join(getForgeRoot(), "templates");
-
-  let files: string[];
-  try {
-    files = fs
-      .readdirSync(templatesDir)
-      .filter((f) => f.endsWith(".json"));
-  } catch {
+  const types = availableTemplateTypes();
+  if (types.length === 0) {
     return NextResponse.json({ templates: [] });
   }
 
-  const templates = files.map((file) => {
-    const type = file.replace(/\.json$/, "");
-    const raw = fs.readFileSync(path.join(templatesDir, file), "utf-8");
+  const templates = types.map((type) => {
+    const raw = fs.readFileSync(templatePath(type), "utf-8");
     const data = JSON.parse(raw);
     return {
       type,
@@ -26,6 +18,7 @@ export async function GET() {
       agentic: data.agentic ?? true,
       workspace: data.workspace ?? true,
       repo: data.repo ?? "",
+      model: data.model ?? "",
     };
   });
 

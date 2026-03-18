@@ -19,6 +19,7 @@ interface Agent {
   agentic: boolean;
   workspace: boolean;
   repo: string;
+  model: string;
   branch: string | null;
   status: AgentStatus;
   stagedInterval?: string;
@@ -250,6 +251,7 @@ interface Template {
   contexts: string[];
   agentic: boolean;
   workspace: boolean;
+  model: string;
 }
 
 function AddAgentModal({
@@ -270,6 +272,20 @@ function AddAgentModal({
   const [loading, setLoading] = useState(true);
   const backdropRef = useRef<HTMLDivElement>(null);
 
+  const getAutoId = useCallback(
+    (type: string) => {
+      const existing = agents
+        .filter((a) => a.role === type)
+        .map((a) => {
+          const match = a.id.match(new RegExp(`^${type}-(\\d+)$`));
+          return match ? parseInt(match[1], 10) : 0;
+        });
+      const next = existing.length > 0 ? Math.max(...existing) + 1 : 1;
+      return `${type}-${String(next).padStart(2, "0")}`;
+    },
+    [agents]
+  );
+
   useEffect(() => {
     fetch("/api/templates")
       .then((res) => res.json())
@@ -288,7 +304,7 @@ function AddAgentModal({
       })
       .catch(() => setError("Failed to load templates"))
       .finally(() => setLoading(false));
-  }, []);
+  }, [getAutoId]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -308,20 +324,6 @@ function AddAgentModal({
     setAgentId(getAutoId(tpl.type));
     setError(null);
   };
-
-  const getAutoId = useCallback(
-    (type: string) => {
-      const existing = agents
-        .filter((a) => a.role === type)
-        .map((a) => {
-          const match = a.id.match(new RegExp(`^${type}-(\\d+)$`));
-          return match ? parseInt(match[1], 10) : 0;
-        });
-      const next = existing.length > 0 ? Math.max(...existing) + 1 : 1;
-      return `${type}-${String(next).padStart(2, "0")}`;
-    },
-    [agents]
-  );
 
   const handleSubmit = async () => {
     if (!selected) return;

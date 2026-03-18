@@ -22,13 +22,14 @@ Run Forge commands from the repo root with `uv run forge ...`. Requires Python 3
 
 Add an agent from a template.
 
-`uv run forge add [AGENT_TYPE] [--id ID] [--interval INTERVAL] [--list]`
+`uv run forge add [AGENT_TYPE] [--id ID] [--interval INTERVAL] [--model MODEL] [--list]`
 
 | Flag | Description |
 |------|-------------|
 | `AGENT_TYPE` | Template name (e.g. `worker`, `planner`) |
 | `--id ID` | Custom agent ID (default: auto-generate, e.g. `worker-01`) |
 | `--interval INTERVAL` | Override template interval (e.g. `5m`, `1h`) |
+| `--model MODEL` | Override template model (e.g. `gpt-5.4`) |
 | `--list` | List available templates |
 
 ```bash
@@ -37,6 +38,9 @@ uv run forge add worker
 
 # Add with custom ID and interval
 uv run forge add worker --id worker-05 --interval 10m
+
+# Add with an explicit model override
+uv run forge add worker --model gpt-5.4
 
 # List available templates
 uv run forge add --list
@@ -194,7 +198,7 @@ Auto-tunnel uses `gh webhook forward` (preferred) or `ngrok` if available. Tunne
 | `cron-jobs.json` | `agent-kernel/cron/cron-jobs.json` | Staged agent definitions (jobs, intervals, prompts) |
 | `cron-state.json` | `agent-kernel/cron/cron-state.json` | Active cron state (last run times, managed by the system) |
 | `config.toml` | `apps/webhook-monitor/config.toml` | Webhook config (`repo.name`, `webhook.secret`) |
-| Templates | `templates/*.json` | Agent templates used by `forge add` |
+| Templates | `templates/*.json` or `templates/*.example.json` | Agent templates used by `forge add` |
 
 ### Environment variables
 

@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import {
+  availableTemplateTypes,
   atomicWriteJsonSync,
   cronJobsPath,
   cronStatePath,
-  getForgeRoot,
   lockFilePath,
   templatePath,
   worktreePath,
@@ -20,6 +20,7 @@ interface CronJob {
   workspace: boolean;
   enabled?: boolean;
   repo?: string;
+  model?: string;
 }
 
 interface CronState {
@@ -132,6 +133,7 @@ function buildAgentFromJob(
     agentic: job.agentic,
     workspace: job.workspace,
     repo: job.repo ?? "",
+    model: job.model ?? "",
     status,
     ...(stagedInterval ? { stagedInterval } : {}),
   };
@@ -197,20 +199,6 @@ export async function GET() {
   return NextResponse.json({ agents });
 }
 
-function availableTemplateTypes(): Set<string> {
-  const templatesDir = path.join(getForgeRoot(), "templates");
-  try {
-    return new Set(
-      fs
-        .readdirSync(templatesDir)
-        .filter((f) => f.endsWith(".json"))
-        .map((f) => f.replace(/\.json$/, ""))
-    );
-  } catch {
-    return new Set();
-  }
-}
-
 const SAFE_ID_RE = /^[a-z][a-z0-9-]{0,63}$/;
 
 export async function POST(request: NextRequest) {
@@ -219,9 +207,9 @@ export async function POST(request: NextRequest) {
     const type: string = body.type;
 
     const validTypes = availableTemplateTypes();
-    if (!type || !validTypes.has(type)) {
+    if (!type || !validTypes.includes(type)) {
       return NextResponse.json(
-        { error: `type must be one of: ${[...validTypes].sort().join(", ")}` },
+        { error: `type must be one of: ${validTypes.join(", ")}` },
         { status: 400 }
       );
     }
@@ -287,6 +275,7 @@ export async function POST(request: NextRequest) {
       agentic: template.agentic ?? true,
       workspace: template.workspace ?? true,
       repo: template.repo ?? "",
+      model: template.model ?? "",
     };
 
     data.jobs.push(newJob);

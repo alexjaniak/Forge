@@ -14,16 +14,31 @@ def _templates_dir():
     return os.path.join(repo_root(), "templates")
 
 
+def _template_candidates(template_name):
+    tdir = _templates_dir()
+    return [
+        os.path.join(tdir, f"{template_name}.json"),
+        os.path.join(tdir, f"{template_name}.example.json"),
+    ]
+
+
 def _available_templates():
-    """Return dict of template_name -> file_path for all .json files in templates/."""
+    """Return dict of template_name -> file_path for resolved templates in templates/."""
     tdir = _templates_dir()
     if not os.path.isdir(tdir):
         return {}
     templates = {}
     for fname in sorted(os.listdir(tdir)):
-        if fname.endswith(".json"):
+        if fname.endswith(".example.json"):
+            name = fname[:-13]
+        elif fname.endswith(".json"):
             name = fname[:-5]
-            templates[name] = os.path.join(tdir, fname)
+        else:
+            continue
+        for candidate in _template_candidates(name):
+            if os.path.isfile(candidate):
+                templates[name] = candidate
+                break
     return templates
 
 
@@ -45,8 +60,9 @@ def _next_id(agent_type, existing_ids):
 @click.argument("agent_type", required=False, default=None)
 @click.option("--id", "agent_id", default=None, help="Custom agent ID (default: auto-generate).")
 @click.option("--interval", default=None, help="Override template interval (e.g. 5m, 1h).")
+@click.option("--model", default=None, help="Override template model (e.g. gpt-5.4).")
 @click.option("--list", "list_templates", is_flag=True, help="List available templates.")
-def add(agent_type, agent_id, interval, list_templates):
+def add(agent_type, agent_id, interval, model, list_templates):
     """Add an agent from a template.
 
     AGENT_TYPE is the template name (e.g. worker, planner).
@@ -94,6 +110,9 @@ def add(agent_type, agent_id, interval, list_templates):
     job["workspace"] = template.get("workspace", False)
     if "repo" in template:
         job["repo"] = template["repo"]
+    resolved_model = model if model is not None else template.get("model")
+    if resolved_model:
+        job["model"] = resolved_model
 
     cron_data.setdefault("jobs", []).append(job)
     save_cron_jobs(cron_path, cron_data)
@@ -110,6 +129,8 @@ def add(agent_type, agent_id, interval, list_templates):
         click.echo(f"  contexts:  {', '.join(job['contexts'])}")
     click.echo(f"  agentic:   {'yes' if job['agentic'] else 'no'}")
     click.echo(f"  workspace: {'yes' if job['workspace'] else 'no'}")
+    if job.get("model"):
+        click.echo(f"  model:     {job['model']}")
     click.echo()
     click.echo("Run `forge apply` to activate.")
 

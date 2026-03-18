@@ -90,7 +90,7 @@ Each `info.json` contains `{"agent": "<id>", "pid": <pid>, "claimed_at": "<ISO t
 agent-kernel/    Core runtime — run.sh entry point, cron scheduling
 apps/            Applications (forge-cli, web dashboard)
 contexts/        Reusable context files that define agent behavior and protocols
-templates/       Agent configuration templates (worker.json, planner.json, super.json)
+templates/       Agent configuration templates (worker.json / worker.example.json, etc.)
 ```
 
 - **[agent-kernel](agent-kernel/README.md)** — one-shot Claude CLI wrapper with context assembly, worktree management, and cron-friendly execution

@@ -39,7 +39,28 @@ export function logsDir(): string {
 }
 
 export function templatePath(type: string): string {
-  return path.join(getForgeRoot(), `templates/${type}.json`);
+  const forgeRoot = getForgeRoot();
+  const localPath = path.join(forgeRoot, `templates/${type}.json`);
+  if (fs.existsSync(localPath)) {
+    return localPath;
+  }
+  return path.join(forgeRoot, `templates/${type}.example.json`);
+}
+
+export function availableTemplateTypes(): string[] {
+  const templatesDir = path.join(getForgeRoot(), "templates");
+  try {
+    const types = new Set<string>();
+    for (const file of fs.readdirSync(templatesDir)) {
+      const match = file.match(/^(.+?)(?:\.example)?\.json$/);
+      if (match?.[1]) {
+        types.add(match[1]);
+      }
+    }
+    return [...types].sort();
+  } catch {
+    return [];
+  }
 }
 
 export function eventsPath(): string {

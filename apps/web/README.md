@@ -62,7 +62,8 @@ agent-kernel/logs/{id}.log        → GET /api/logs/stream  → LogsPanel (SSE)
 apps/webhook-monitor/events.jsonl → GET /api/events       → EventsPanel
 gh issue list (via CLI)             → GET /api/issues       → IssuesPanel fallback
 GitHub events JSONL                 → GET /api/issues/stream → IssuesPanel live snapshots
-templates/{type}.json             → POST /api/agents      → (agent creation)
+templates/{type}.json or
+templates/{type}.example.json     → POST /api/agents      → (agent creation)
 .worktrees/{id}/.agent.lock       → GET /api/agents       → (running detection)
 ```
 
@@ -83,7 +84,7 @@ Running state is detected via `.agent.lock` PID files in agent worktrees.
 
 ### `POST /api/agents`
 
-Creates a new agent. Body: `{ type: "worker"|"planner", id?: string, interval?: string }`. Loads defaults from `templates/{type}.json`. Auto-generates ID as `{type}-{N}` if not provided.
+Creates a new agent. Body: `{ type: "worker"|"planner", id?: string, interval?: string }`. Loads defaults from `templates/{type}.json`, falling back to `templates/{type}.example.json`. Auto-generates ID as `{type}-{N}` if not provided.
 
 ### `DELETE /api/agents/[id]`
 
