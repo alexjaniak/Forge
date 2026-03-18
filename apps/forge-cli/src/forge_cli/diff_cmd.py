@@ -8,7 +8,7 @@ import click
 from forge_cli.cron_normalization import normalize_optional_cron_field
 from forge_cli.paths import _get_manage, cron_jobs_path, load_cron_jobs
 
-DIFF_FIELDS = ["interval", "prompt", "contexts", "agentic", "workspace", "repo", "runtime", "model", "enabled"]
+DIFF_FIELDS = ["interval", "prompt", "contexts", "repo", "runtime", "model", "enabled"]
 
 
 def _format_value(field, value):
@@ -17,8 +17,6 @@ def _format_value(field, value):
         if isinstance(value, list):
             return ", ".join(value) if value else "(none)"
         return str(value) if value else "(none)"
-    if field in ("agentic", "workspace"):
-        return "yes" if value else "no"
     if field == "enabled":
         return "yes" if value else "no"
     return str(value) if value is not None else "(none)"
@@ -28,8 +26,6 @@ def _get_field(job, field):
     """Get a field value from a job dict with sensible defaults."""
     if field == "enabled":
         return job.get("enabled", True)
-    if field in ("agentic", "workspace"):
-        return job.get(field, False)
     if field == "contexts":
         return job.get("contexts", [])
     return job.get(field)

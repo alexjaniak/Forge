@@ -14,15 +14,11 @@ class CronNormalizationTests(unittest.TestCase):
             "interval": "5m",
             "prompt": "Test prompt",
             "contexts": [],
-            "agentic": False,
-            "workspace": False,
         }
         applied_job = {
             "interval": "5m",
             "prompt": "Test prompt",
             "contexts": [],
-            "agentic": False,
-            "workspace": False,
             "repo": "",
             "runtime": "claude",
             "model": "",
@@ -41,8 +37,6 @@ class CronNormalizationTests(unittest.TestCase):
                             "interval": "5m",
                             "prompt": "Test prompt",
                             "contexts": [],
-                            "agentic": False,
-                            "workspace": False,
                             "repo": "",
                             "runtime": "claude",
                             "model": "",
@@ -59,8 +53,6 @@ class CronNormalizationTests(unittest.TestCase):
                     "interval": "5m",
                     "prompt": "Test prompt",
                     "contexts": [],
-                    "agentic": False,
-                    "workspace": False,
                     "enabled": True,
                 }
             ]
@@ -86,8 +78,6 @@ class CronNormalizationTests(unittest.TestCase):
                             "interval": "5m",
                             "prompt": "Test prompt",
                             "contexts": [],
-                            "agentic": False,
-                            "workspace": False,
                             "repo": "",
                             "runtime": "claude",
                             "model": "",
@@ -103,8 +93,6 @@ class CronNormalizationTests(unittest.TestCase):
                     "interval": "5m",
                     "prompt": "Test prompt",
                     "contexts": [],
-                    "agentic": False,
-                    "workspace": False,
                 }
             ]
         }

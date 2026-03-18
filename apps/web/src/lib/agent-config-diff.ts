@@ -2,8 +2,6 @@ export interface AgentConfigFields {
   interval?: string;
   prompt?: string;
   contexts?: string[];
-  agentic?: boolean;
-  workspace?: boolean;
   repo?: string;
   runtime?: string;
   model?: string;
@@ -18,8 +16,6 @@ export const COMPARE_FIELDS = [
   "interval",
   "prompt",
   "contexts",
-  "agentic",
-  "workspace",
   "repo",
   "runtime",
   "model",

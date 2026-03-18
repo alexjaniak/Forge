@@ -12,8 +12,6 @@ interface CronJob {
   interval: string;
   prompt: string;
   contexts: string[];
-  agentic: boolean;
-  workspace: boolean;
   repo?: string;
   runtime?: string;
   model?: string;
@@ -26,8 +24,6 @@ interface CronState {
       interval?: string;
       prompt?: string;
       contexts?: string[];
-      agentic?: boolean;
-      workspace?: boolean;
       repo?: string;
       runtime?: string;
       model?: string;

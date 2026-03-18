@@ -10,7 +10,7 @@ from forge_cli.paths import _get_manage, cron_jobs_path, load_cron_jobs, save_cr
 
 # Fields to copy from state entries back into config job entries.
 _CONFIG_FIELDS = (
-    "interval", "prompt", "contexts", "agentic", "workspace", "repo",
+    "interval", "prompt", "contexts", "repo",
     "runtime", "model",
 )
 

@@ -34,8 +34,6 @@ class AddCommandTests(unittest.TestCase):
                             "interval": template["interval"],
                             "prompt": template["prompt"],
                             "contexts": template["contexts"],
-                            "agentic": template["agentic"],
-                            "workspace": template["workspace"],
                             "repo": template["repo"],
                         }
                     ],

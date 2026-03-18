@@ -78,7 +78,7 @@ Returns all agents with computed status and metadata. Reads staged config from `
 
 - **new** — in staged config but not applied state yet
 - **active** — in both with matching applied interval
-- **modified** — in both, but one or more compared fields differ between staged and applied config (`interval`, `prompt`, `contexts`, `agentic`, `workspace`, `repo`, `runtime`, `model`)
+- **modified** — in both, but one or more compared fields differ between staged and applied config (`interval`, `prompt`, `contexts`, `repo`, `runtime`, `model`)
 - **deleted** — in applied state but removed from staged config
 
 Running state is detected via `.agent.lock` PID files in agent worktrees.

@@ -9,8 +9,6 @@ interface CronState {
       interval?: string;
       prompt?: string;
       contexts?: string[];
-      agentic?: boolean;
-      workspace?: boolean;
       repo?: string;
       runtime?: string;
       model?: string;
@@ -25,8 +23,6 @@ interface CronJobsConfig {
     interval: string;
     prompt: string;
     contexts: string[];
-    agentic: boolean;
-    workspace: boolean;
     repo?: string;
     runtime?: string;
     model?: string;
@@ -74,8 +70,6 @@ export async function POST() {
         interval: entry.interval ?? existingJob?.interval ?? "2m",
         prompt: entry.prompt ?? existingJob?.prompt ?? "",
         contexts: entry.contexts ?? existingJob?.contexts ?? [],
-        agentic: entry.agentic ?? existingJob?.agentic ?? true,
-        workspace: entry.workspace ?? existingJob?.workspace ?? true,
         ...(entry.repo !== undefined ? { repo: entry.repo } : existingJob?.repo !== undefined ? { repo: existingJob.repo } : {}),
         ...(entry.runtime !== undefined ? { runtime: entry.runtime } : existingJob?.runtime !== undefined ? { runtime: existingJob.runtime } : {}),
         ...(entry.model !== undefined ? { model: entry.model } : existingJob?.model !== undefined ? { model: existingJob.model } : {}),
