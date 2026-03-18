@@ -1,13 +1,12 @@
 # Forge Webhook Monitor
 
-> **Note:** The primary interface is now `uv run forge wh`. See the [Forge CLI section](../../README.md#forge-cli) in the root README.
+> **Note:** The primary interface is now `forge wh`. See the [Forge CLI section](../../README.md#forge-cli) in the root README.
 
 Receives GitHub webhook events and stores them as normalized JSONL for the Forge event system.
 
 ## Prerequisites
 
 - Python 3.11+
-- `uv` installed: `curl -LsSf https://astral.sh/uv/install.sh | sh`
 - A tunnel tool: `gh webhook forward` (GitHub CLI) or [ngrok](https://ngrok.com/download)
 
 ## Setup
@@ -15,12 +14,9 @@ Receives GitHub webhook events and stores them as normalized JSONL for the Forge
 ### 1. Install the webhook server
 
 ```bash
-uv sync --all-packages
+cd apps/webhook-monitor
+pip install -e .
 ```
-
-If you prefer another install method for `uv`, see: https://docs.astral.sh/uv/getting-started/installation/
-
-If `uv` is not on `PATH` yet after installation, restart your shell or source your shell profile.
 
 ### 2. Configure
 
@@ -60,7 +56,7 @@ Environment variables still override config file values for CI/deploy:
 ### 3. Start the server
 
 ```bash
-uv run forge wh
+forge wh
 ```
 
 > `forge-webhook` still works but is deprecated.
@@ -98,9 +94,9 @@ The script tries `gh webhook forward` first, then falls back to `ngrok`.
 ## Quick start (both server + tunnel)
 
 ```bash
-uv run forge wh
+forge wh
 ```
 
 Starts the webhook server and tunnel in a single process. Press `Ctrl+C` to stop both.
 
-Use `uv run forge wh --no-tunnel` to start only the server without the tunnel.
+Use `forge wh --no-tunnel` to start only the server without the tunnel.

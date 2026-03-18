@@ -92,8 +92,6 @@ def add(agent_type, agent_id, interval, list_templates):
     job["contexts"] = template.get("contexts", [])
     job["agentic"] = template.get("agentic", False)
     job["workspace"] = template.get("workspace", False)
-    if "repo" in template:
-        job["repo"] = template["repo"]
 
     cron_data.setdefault("jobs", []).append(job)
     save_cron_jobs(cron_path, cron_data)

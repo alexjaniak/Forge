@@ -11,12 +11,3 @@ dependencies = ["click>=8.0", "forge-webhook>=0.1.0"]
 
 [project.scripts]
 forge = "forge_cli.cli:main"
-
-[tool.setuptools]
-package-dir = { "" = "src" }
-
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.uv.sources]
-forge-webhook = { workspace = true }

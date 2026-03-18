@@ -106,7 +106,7 @@ export function ResizableLayout({
   return (
     <div
       ref={containerRef}
-      className={`h-dvh w-screen overflow-hidden flex bg-border${dragging ? " select-none" : ""}`}
+      className={`h-screen w-screen overflow-hidden flex bg-border${dragging ? " select-none" : ""}`}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       style={{ cursor: dragging ? "col-resize" : undefined }}
@@ -127,7 +127,7 @@ export function ResizableLayout({
           className="overflow-hidden shrink-0 flex flex-col"
           style={{ width: sidebarWidth }}
         >
-          <div className="flex items-center justify-between px-3 pt-3 pb-2 shrink-0">
+          <div className="flex items-center justify-between px-3 pt-3 pb-1 shrink-0">
             <h2 className="text-text-bright font-semibold text-sm uppercase tracking-wide">Agents</h2>
             <button
               className="text-muted-foreground hover:text-text-bright text-sm px-1"
