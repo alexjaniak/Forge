@@ -8,6 +8,10 @@ export PATH="$HOME/.claude/local:/opt/homebrew/bin:/usr/local/bin:$PATH"
 KERNEL_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(cd "$KERNEL_DIR/.." && pwd)"
 
+# ── load lock system ────────────────────────────────────────
+source "$KERNEL_DIR/locks.sh"
+source "$KERNEL_DIR/preflight.sh"
+
 # ── load .env if present (overrides, etc.) ─────────────────────
 if [[ -f "$KERNEL_DIR/.env" ]]; then
   set -a
@@ -74,17 +78,9 @@ fi
 # instead of Forge's own repo. Context files still resolve from Forge's REPO_DIR.
 WORK_REPO_DIR="$REPO_DIR"
 
-# Self-targeting: derive GitHub path from origin remote so worktrees
-# land under .repos/ just like external repos.
 if [[ -z "$TARGET_REPO" ]]; then
-  ORIGIN_URL="$(git -C "$REPO_DIR" remote get-url origin 2>/dev/null || true)"
-  if [[ -n "$ORIGIN_URL" ]]; then
-    # Normalize SSH (git@github.com:owner/repo.git) or HTTPS (https://github.com/owner/repo.git)
-    GITHUB_PATH="$(echo "$ORIGIN_URL" | sed -E 's#^(git@|https://)##; s#:#/#; s#\.git$##')"
-    if [[ "$GITHUB_PATH" == github.com/* ]]; then
-      TARGET_REPO="$GITHUB_PATH"
-    fi
-  fi
+  echo "Error: --repo is required. Set the \"repo\" field in your agent template or cron-jobs.json." >&2
+  exit 1
 fi
 
 if [[ -n "$TARGET_REPO" ]]; then
@@ -151,7 +147,6 @@ cleanup() {
   local duration=$(( end_epoch - RUN_START_EPOCH ))
   local logfile="$LOGS_DIR/${WORKSPACE_ID:-unknown}.log"
 
-  # Prepend header + atomically append buffered output
   {
     echo "=== RUN ${RUN_START_TS} duration=${duration}s exit=${rc} ==="
     cat "$TMPLOG"
@@ -159,11 +154,15 @@ cleanup() {
 
   rm -f "$TMPLOG"
   rm -f "${LOCKFILE:-}"
+  if [[ -n "${FORGE_LOCKED_ISSUE:-}" ]]; then
+    lock_release issue "$FORGE_LOCKED_ISSUE"
+  fi
 }
 trap cleanup EXIT
 
 # ── runtime selection (default: claude) ──────────────────────
 AGENT_RUNTIME="${AGENT_RUNTIME:-claude}"
+detect_agent_role
 
 # ── runtime command routing ──────────────────────────────────
 if [[ "$AGENT_RUNTIME" == "codex" ]]; then
@@ -188,31 +187,17 @@ else
   fi
 fi
 
-# ── preflight: skip idle worker runs ─────────────────────────
-IS_WORKER=false
-for ctx in "${CONTEXTS[@]}"; do
-  if [[ "$ctx" == *WORKER.md ]]; then
-    IS_WORKER=true
-    break
-  fi
-done
-
-if [[ "$IS_WORKER" == true ]]; then
-  GH_ARGS=(issue list --label "status:ready-for-work" --label "role:worker" --json number --jq 'length')
-
-  if [[ "$TARGET_REPO" == github.com/* ]]; then
-    GH_REPO="${TARGET_REPO#github.com/}"
-    GH_ARGS+=(--repo "$GH_REPO")
-  fi
-
-  AVAILABLE=$(gh "${GH_ARGS[@]}" 2>/dev/null || echo "error")
-
-  if [[ "$AVAILABLE" == "0" ]]; then
-    echo "No issues with status:ready-for-work + role:worker — skipping run"
-    exit 0
-  fi
-  # If gh fails (network error, etc.), proceed with the run rather than skipping
-fi
+case "$AGENT_ROLE" in
+  worker)
+    preflight_lock_issue "worker" "status:ready-for-work,role:worker" "hard"
+    ;;
+  planner)
+    preflight_lock_issue "planner" "role:planner" "soft"
+    ;;
+  super)
+    preflight_lock_issue "super" "role:super" "soft"
+    ;;
+esac
 
 
 # ── preflight: Codex binary (direct mode) ────────────────────
@@ -267,13 +252,18 @@ if [[ -n "$WORKSPACE_ID" ]]; then
   SYSTEM_PROMPT="AGENT_ID: $WORKSPACE_ID"$'\n\n'"$SYSTEM_PROMPT"
 fi
 
+# ── inject pre-assigned issue ──────────────────────────────────
+if [[ -n "${FORGE_LOCKED_ISSUE:-}" ]]; then
+  SYSTEM_PROMPT="ASSIGNED_ISSUE: $FORGE_LOCKED_ISSUE"$'\n'"$SYSTEM_PROMPT"
+fi
+
 # ── build runtime args ────────────────────────────────────────
 RUNTIME_ARGS=()
 
 if [[ "$AGENT_RUNTIME" == "codex" ]]; then
   RUNTIME_ARGS+=(--dangerously-bypass-approvals-and-sandbox)
   if [[ -n "$SYSTEM_PROMPT" ]]; then
-    RUNTIME_ARGS+=(-c "instructions=$(printf '%s' "$SYSTEM_PROMPT")")
+    PROMPT="${SYSTEM_PROMPT}"$'\n\n'"${PROMPT}"
   fi
 else
   if [[ "$AGENTIC" == false ]]; then
