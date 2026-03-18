@@ -56,11 +56,11 @@ uv run forge remove worker-03
 
 Removes the agent from `cron-jobs.json`. Run `uv run forge cron apply` to deactivate.
 
-### `forge list` / `forge status`
+### `forge status`
 
 Show all agents grouped by state: staged, active, and unstaged (active but not in config).
 
-`uv run forge list`
+`uv run forge status`
 
 Displays each agent's ID, role, interval, last run time, and next run countdown. Highlights pending changes (new, removed, interval changed) that require `uv run forge cron apply`.
 
