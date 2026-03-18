@@ -25,10 +25,12 @@ AGENTIC=false
 PROMPT=""
 CONTEXTS=()
 WORKSPACE_ID=""
+LOG_ID=""
 TARGET_REPO=""
 MODEL=""
 NEXT_IS_CONTEXT=false
 NEXT_IS_WORKSPACE=false
+NEXT_IS_LOG_ID=false
 NEXT_IS_REPO=false
 NEXT_IS_MODEL=false
 
@@ -41,6 +43,11 @@ for arg in "$@"; do
   if [[ "$NEXT_IS_WORKSPACE" == true ]]; then
     WORKSPACE_ID="$arg"
     NEXT_IS_WORKSPACE=false
+    continue
+  fi
+  if [[ "$NEXT_IS_LOG_ID" == true ]]; then
+    LOG_ID="$arg"
+    NEXT_IS_LOG_ID=false
     continue
   fi
   if [[ "$NEXT_IS_REPO" == true ]]; then
@@ -57,6 +64,7 @@ for arg in "$@"; do
     --agentic)    AGENTIC=true ;;
     --context)    NEXT_IS_CONTEXT=true ;;
     --workspace)  NEXT_IS_WORKSPACE=true ;;
+    --log-id)     NEXT_IS_LOG_ID=true ;;
     --repo)       NEXT_IS_REPO=true ;;
     --model)      NEXT_IS_MODEL=true ;;
     *)            PROMPT="$arg" ;;
@@ -69,7 +77,7 @@ if [[ -z "$PROMPT" ]] && [[ ! -t 0 ]]; then
 fi
 
 if [[ -z "$PROMPT" ]]; then
-  echo "Usage: $0 [--agentic] [--workspace <id>] [--repo <path-or-url>] [--model <model>] [--context <path> ...] \"<prompt>\"" >&2
+  echo "Usage: $0 [--agentic] [--workspace <id>] [--log-id <id>] [--repo <path-or-url>] [--model <model>] [--context <path> ...] \"<prompt>\"" >&2
   exit 1
 fi
 
@@ -145,7 +153,8 @@ cleanup() {
   local end_epoch
   end_epoch="$(date +%s)"
   local duration=$(( end_epoch - RUN_START_EPOCH ))
-  local logfile="$LOGS_DIR/${WORKSPACE_ID:-unknown}.log"
+  local log_target="${WORKSPACE_ID:-${LOG_ID:-unknown}}"
+  local logfile="$LOGS_DIR/${log_target}.log"
 
   {
     echo "=== RUN ${RUN_START_TS} duration=${duration}s exit=${rc} ==="
