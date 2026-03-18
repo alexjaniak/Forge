@@ -25,17 +25,14 @@ cp agent-kernel/.env.example agent-kernel/.env
 ## Usage
 
 ```bash
-# Text-only (default — --print, no tools)
-./agent-kernel/run.sh "Summarize recent commits"
+# Direct run against a target repo
+./agent-kernel/run.sh --repo "$PWD" "Summarize recent commits"
 
 # With context files (paths relative to repo root)
-./agent-kernel/run.sh --context contexts/IDENTITY.md "Summarize recent commits"
-
-# Agentic with context
-./agent-kernel/run.sh --agentic --context contexts/IDENTITY.md "Check for stale PRs and comment on them"
+./agent-kernel/run.sh --repo "$PWD" --context contexts/IDENTITY.md "Check for stale PRs and comment on them"
 
 # Piped
-echo "List open issues" | ./agent-kernel/run.sh
+echo "List open issues" | ./agent-kernel/run.sh --repo "$PWD"
 ```
 
 ## Context Library
@@ -105,5 +102,5 @@ This checks connectivity and confirms your token is valid.
 2. System prompt is passed via `--append-system-prompt` (preserves Claude's built-in capabilities)
 3. Your prompt goes as the message argument
 4. `--dangerously-skip-permissions` is on by default for unattended runs
-5. Default mode is `--print` (text only). Pass `--agentic` to enable tool use.
-6. `--workspace <id>` runs inside an isolated git worktree at `.repos/<id>`
+5. Tool access is always enabled for unattended runs.
+6. `--workspace <id>` runs inside an isolated git worktree under the target repo.
