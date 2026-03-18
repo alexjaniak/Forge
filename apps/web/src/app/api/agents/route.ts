@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import {
@@ -6,6 +7,7 @@ import {
   cronJobsPath,
   cronStatePath,
   getForgeRoot,
+  issueLocksPath,
   lockFilePath,
   templatePath,
   worktreePath,
@@ -33,6 +35,11 @@ interface CronState {
       contexts?: string[];
     }
   >;
+}
+
+interface IssueLockInfo {
+  number: number;
+  url: string;
 }
 
 function parseIntervalSeconds(interval: string): number {
@@ -85,11 +92,65 @@ function inferRole(id: string): string {
   return match?.[1] ?? "worker";
 }
 
+function readIssueLocks(repo?: string): Map<string, IssueLockInfo> {
+  const locks = new Map<string, IssueLockInfo>();
+  const basePath = issueLocksPath(repo);
+
+  let repoNameWithOwner = repo ?? "";
+  if (!repoNameWithOwner) {
+    try {
+      repoNameWithOwner = execSync(
+        "gh repo view --json nameWithOwner -q '.nameWithOwner'",
+        {
+          cwd: getForgeRoot(),
+          encoding: "utf-8",
+          timeout: 10000,
+        }
+      ).trim();
+    } catch {
+      repoNameWithOwner = "";
+    }
+  }
+
+  let entries: string[] = [];
+  try {
+    entries = fs.readdirSync(basePath);
+  } catch {
+    return locks;
+  }
+
+  for (const entry of entries) {
+    if (!entry.endsWith(".lock")) continue;
+
+    const number = Number.parseInt(entry.replace(/\.lock$/, ""), 10);
+    if (!Number.isInteger(number)) continue;
+
+    try {
+      const raw = fs.readFileSync(path.join(basePath, entry, "info.json"), "utf-8");
+      const parsed = JSON.parse(raw) as { agent?: unknown; pid?: unknown };
+      if (typeof parsed.agent !== "string" || parsed.agent.length === 0) continue;
+      if (typeof parsed.pid !== "number" || !isProcessAlive(parsed.pid)) continue;
+
+      locks.set(parsed.agent, {
+        number,
+        url: repoNameWithOwner
+          ? `https://github.com/${repoNameWithOwner}/issues/${number}`
+          : "",
+      });
+    } catch {
+      // Ignore malformed or unreadable lock entries.
+    }
+  }
+
+  return locks;
+}
+
 function buildAgentFromJob(
   job: CronJob,
   jobState: CronState["jobs"][string] | undefined,
   status: "staged" | "active" | "modified" | "orphan",
-  stagedInterval?: string
+  stagedInterval?: string,
+  issueLock?: IssueLockInfo
 ) {
   const intervalSeconds = parseIntervalSeconds(job.interval);
   const lastRun = jobState?.last_run ?? null;
@@ -133,6 +194,12 @@ function buildAgentFromJob(
     workspace: job.workspace,
     repo: job.repo ?? "",
     status,
+    ...(issueLock
+      ? {
+          lockedIssueNumber: issueLock.number,
+          lockedIssueUrl: issueLock.url,
+        }
+      : {}),
     ...(stagedInterval ? { stagedInterval } : {}),
   };
 }
@@ -158,13 +225,23 @@ export async function GET() {
 
   const stagedIds = new Set(jobs.map((j) => j.id));
   const activeIds = new Set(Object.keys(state.jobs ?? {}));
+  const issueLocksByRepo = new Map<string, Map<string, IssueLockInfo>>();
 
   const agents = jobs.map((job) => {
     const jobState = state.jobs?.[job.id];
     const inState = activeIds.has(job.id);
+    const repoKey = job.repo ?? "";
+    const repoIssueLocks =
+      issueLocksByRepo.get(repoKey) ??
+      (() => {
+        const locks = readIssueLocks(job.repo);
+        issueLocksByRepo.set(repoKey, locks);
+        return locks;
+      })();
+    const issueLock = repoIssueLocks.get(job.id);
 
     if (!hasState || !inState) {
-      return buildAgentFromJob(job, undefined, "staged");
+      return buildAgentFromJob(job, undefined, "staged", undefined, issueLock);
     }
 
     const activeInterval = jobState?.interval;
@@ -172,10 +249,16 @@ export async function GET() {
       // interval field shows the active (running) interval
       // stagedInterval shows what it will change to on next apply
       const modifiedJob = { ...job, interval: activeInterval };
-      return buildAgentFromJob(modifiedJob, jobState, "modified", job.interval);
+      return buildAgentFromJob(
+        modifiedJob,
+        jobState,
+        "modified",
+        job.interval,
+        issueLock
+      );
     }
 
-    return buildAgentFromJob(job, jobState, "active");
+    return buildAgentFromJob(job, jobState, "active", undefined, issueLock);
   });
 
   // Add orphan agents (in state but not in staged config)

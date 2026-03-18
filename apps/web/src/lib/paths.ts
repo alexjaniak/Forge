@@ -26,8 +26,19 @@ export function worktreePath(agentId: string, repo?: string): string {
   return path.join(getForgeRoot(), `.worktrees/${agentId}`);
 }
 
+export function repoRootPath(repo?: string): string {
+  if (repo) {
+    return path.join(getForgeRoot(), `.repos/${repo}`);
+  }
+  return getForgeRoot();
+}
+
 export function lockFilePath(agentId: string, repo?: string): string {
   return path.join(worktreePath(agentId, repo), ".agent.lock");
+}
+
+export function issueLocksPath(repo?: string): string {
+  return path.join(repoRootPath(repo), "locks/issues");
 }
 
 export function agentLogPath(agentId: string): string {
