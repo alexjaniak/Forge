@@ -10,8 +10,26 @@ export interface LogBlock {
   skipReason?: string;
 }
 
+export interface LogParserState {
+  currentTimestamp: string | null;
+  currentDuration?: number;
+  currentExitCode?: number;
+  currentLines: string[];
+  pendingLine: string;
+}
+
 const RUN_MARKER = /^=== RUN (\S+) duration=(\d+)s exit=(\d+) ===$/;
 const SKIP_MARKER = /^=== SKIP (\S+) reason=(.+) ===$/;
+
+function createEmptyState(): LogParserState {
+  return {
+    currentTimestamp: null,
+    currentDuration: undefined,
+    currentExitCode: undefined,
+    currentLines: [],
+    pendingLine: "",
+  };
+}
 
 function formatTime(isoTimestamp: string): string {
   try {
@@ -29,94 +47,104 @@ function formatTime(isoTimestamp: string): string {
 
 export function parseLogBlocks(
   agentId: string,
-  raw: string
-): LogBlock[] {
-  const lines = raw.split("\n");
+  raw: string,
+  options?: {
+    state?: LogParserState;
+    finalize?: boolean;
+  }
+): { blocks: LogBlock[]; state: LogParserState } {
+  const state = options?.state
+    ? {
+        currentTimestamp: options.state.currentTimestamp,
+        currentDuration: options.state.currentDuration,
+        currentExitCode: options.state.currentExitCode,
+        currentLines: [...options.state.currentLines],
+        pendingLine: options.state.pendingLine,
+      }
+    : createEmptyState();
   const blocks: LogBlock[] = [];
-  let currentTimestamp: string | null = null;
-  let currentDuration: number | undefined = undefined;
-  let currentExitCode: number | undefined = undefined;
-  let currentLines: string[] = [];
 
-  for (const line of lines) {
-    // Check for skip entries first
+  const pushRunBlock = () => {
+    if (!state.currentTimestamp || state.currentLines.length === 0) {
+      return;
+    }
+
+    const content = state.currentLines.join("\n").trim();
+    if (!content) {
+      return;
+    }
+
+    blocks.push({
+      agentId,
+      timestamp: state.currentTimestamp,
+      displayTime: formatTime(state.currentTimestamp),
+      duration: state.currentDuration,
+      exitCode: state.currentExitCode,
+      content,
+      key: `${agentId}-${state.currentTimestamp}`,
+      type: "run",
+    });
+  };
+
+  const clearRunState = () => {
+    state.currentTimestamp = null;
+    state.currentDuration = undefined;
+    state.currentExitCode = undefined;
+    state.currentLines = [];
+  };
+
+  const processLine = (line: string) => {
     const skipMatch = line.match(SKIP_MARKER);
     if (skipMatch) {
-      // Flush any in-progress block
-      if (currentTimestamp && currentLines.length > 0) {
-        const content = currentLines.join("\n").trim();
-        if (content) {
-          blocks.push({
-            agentId,
-            timestamp: currentTimestamp,
-            displayTime: formatTime(currentTimestamp),
-            duration: currentDuration,
-            exitCode: currentExitCode,
-            content,
-            key: `${agentId}-${currentTimestamp}`,
-            type: "run",
-          });
-        }
-        currentTimestamp = null;
-        currentLines = [];
-        currentDuration = undefined;
-        currentExitCode = undefined;
-      }
-
-      const ts = skipMatch[1];
+      pushRunBlock();
+      clearRunState();
+      const timestamp = skipMatch[1];
       blocks.push({
         agentId,
-        timestamp: ts,
-        displayTime: formatTime(ts),
+        timestamp,
+        displayTime: formatTime(timestamp),
         content: "",
-        key: `${agentId}-skip-${ts}`,
+        key: `${agentId}-skip-${timestamp}`,
         type: "skip",
         skipReason: skipMatch[2],
       });
-      continue;
+      return;
     }
 
-    const match = line.match(RUN_MARKER);
-    if (match) {
-      if (currentTimestamp && currentLines.length > 0) {
-        const content = currentLines.join("\n").trim();
-        if (content) {
-          blocks.push({
-            agentId,
-            timestamp: currentTimestamp,
-            displayTime: formatTime(currentTimestamp),
-            duration: currentDuration,
-            exitCode: currentExitCode,
-            content,
-            key: `${agentId}-${currentTimestamp}`,
-            type: "run",
-          });
-        }
-      }
-      currentTimestamp = match[1];
-      currentDuration = parseInt(match[2], 10);
-      currentExitCode = parseInt(match[3], 10);
-      currentLines = [];
-    } else if (currentTimestamp) {
-      currentLines.push(line);
+    const runMatch = line.match(RUN_MARKER);
+    if (runMatch) {
+      pushRunBlock();
+      state.currentTimestamp = runMatch[1];
+      state.currentDuration = parseInt(runMatch[2], 10);
+      state.currentExitCode = parseInt(runMatch[3], 10);
+      state.currentLines = [];
+      return;
     }
+
+    if (state.currentTimestamp) {
+      state.currentLines.push(line);
+    }
+  };
+
+  const text = state.pendingLine + raw;
+  const lines = text.split("\n");
+  state.pendingLine = text.endsWith("\n") ? "" : (lines.pop() ?? "");
+  if (text.endsWith("\n")) {
+    lines.pop();
   }
 
-  if (currentTimestamp && currentLines.length > 0) {
-    const content = currentLines.join("\n").trim();
-    if (content) {
-      blocks.push({
-        agentId,
-        timestamp: currentTimestamp,
-        displayTime: formatTime(currentTimestamp),
-        duration: currentDuration,
-        exitCode: currentExitCode,
-        content,
-        key: `${agentId}-${currentTimestamp}`,
-        type: "run",
-      });
-    }
+  for (const line of lines) {
+    processLine(line);
   }
 
-  return blocks;
+  if (options?.finalize && state.pendingLine) {
+    processLine(state.pendingLine);
+    state.pendingLine = "";
+  }
+
+  if (state.currentTimestamp) {
+    pushRunBlock();
+  }
+
+  return { blocks, state };
 }

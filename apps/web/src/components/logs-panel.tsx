@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useLayoutEffect } from "react";
-import { LogBlock, parseLogBlocks } from "@/lib/log-parser";
+import { LogBlock, LogParserState, parseLogBlocks } from "@/lib/log-parser";
 import { getAgentColor } from "@/lib/colors";
 
 const MAX_BLOCKS = 200;
@@ -13,6 +13,7 @@ interface AgentOffset {
   [agentId: string]: number;
 }
 
+type AgentParserState = Record<string, LogParserState>;
 type AgentFilterState = Record<string, boolean>;
 
 function loadFilterState(): AgentFilterState {
@@ -50,6 +51,7 @@ export function LogsPanel() {
   const [filterOpen, setFilterOpen] = useState(false);
 
   const offsetsRef = useRef<AgentOffset>({});
+  const parserStatesRef = useRef<AgentParserState>({});
   const containerRef = useRef<HTMLDivElement>(null);
   const prevScrollTop = useRef(0);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -128,13 +130,13 @@ export function LogsPanel() {
         let changed = false;
         for (const b of newBlocks) {
           const existing = blockMap.get(b.key);
-          if (!existing) {
-            blockMap.set(b.key, b);
-            changed = true;
-          } else if (
-            existing.type === "skip"
-              ? b.skipReason !== existing.skipReason
-              : b.content.length > existing.content.length
+          if (
+            !existing ||
+            existing.type !== b.type ||
+            existing.content !== b.content ||
+            existing.skipReason !== b.skipReason ||
+            existing.duration !== b.duration ||
+            existing.exitCode !== b.exitCode
           ) {
             blockMap.set(b.key, b);
             changed = true;
@@ -179,7 +181,11 @@ export function LogsPanel() {
     const newBlocks: LogBlock[] = [];
     for (const result of results) {
       if (result.data) {
-        newBlocks.push(...parseLogBlocks(result.agentId, result.data));
+        const parsed = parseLogBlocks(result.agentId, result.data, {
+          finalize: true,
+        });
+        newBlocks.push(...parsed.blocks);
+        parserStatesRef.current[result.agentId] = parsed.state;
       }
       offsetsRef.current[result.agentId] = result.offset;
     }
@@ -206,7 +212,11 @@ export function LogsPanel() {
     const newBlocks: LogBlock[] = [];
     for (const result of results) {
       if (result.data) {
-        newBlocks.push(...parseLogBlocks(result.agentId, result.data));
+        const parsed = parseLogBlocks(result.agentId, result.data, {
+          state: parserStatesRef.current[result.agentId],
+        });
+        newBlocks.push(...parsed.blocks);
+        parserStatesRef.current[result.agentId] = parsed.state;
       }
       offsetsRef.current[result.agentId] = result.offset;
     }
@@ -231,6 +241,7 @@ export function LogsPanel() {
   useEffect(() => {
     setBlocks([]);
     offsetsRef.current = {};
+    parserStatesRef.current = {};
 
     fetchInitialLogs();
 
@@ -240,8 +251,11 @@ export function LogsPanel() {
     es.addEventListener("log", (event) => {
       const { agentId, data, offset } = JSON.parse(event.data);
       if (data) {
-        const parsed = parseLogBlocks(agentId, data);
-        mergeBlocks(parsed);
+        const parsed = parseLogBlocks(agentId, data, {
+          state: parserStatesRef.current[agentId],
+        });
+        mergeBlocks(parsed.blocks);
+        parserStatesRef.current[agentId] = parsed.state;
       }
       offsetsRef.current[agentId] = offset;
 
