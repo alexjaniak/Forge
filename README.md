@@ -19,7 +19,7 @@ Unified command-line interface for managing agents.
 
 | Command | Description |
 |---------|-------------|
-| `forge add <role>` | Add an agent from a template (worker, planner, super) |
+| `forge add <role>` | Add an agent from tracked template defaults (worker, planner, super) |
 | `forge rm <id>` | Remove staged agents by ID |
 | `forge apply` | Sync staged agent config to live crontab |
 | `forge diff` | Show git-style staged vs applied config changes |
@@ -32,6 +32,8 @@ Unified command-line interface for managing agents.
 | `forge locks list` | Show all held issue/PR locks across repos |
 | `forge locks clear` | Clear stale locks (`--all` for all, `--all --force` to skip confirm) |
 | `forge wh` | Start webhook monitor with auto-tunnel |
+| `forge kill <id>` | Terminate one running managed agent |
+| `forge kill --all` | Terminate all running managed agents |
 
 Run from the repo workspace: `uv run forge --help`
 
@@ -121,7 +123,8 @@ If you prefer manual setup:
 2. `uv sync --all-packages` — Sync the Forge Python workspace
 3. `cd apps/web && npm install` — Install dashboard dependencies
 4. `cp agent-kernel/.env.example agent-kernel/.env` — Configure credentials
-5. `cp apps/webhook-monitor/config.example.toml apps/webhook-monitor/config.toml` — Configure webhooks
+5. `cp apps/forge-cli/config.example.toml apps/forge-cli/config.toml` — Configure webhooks
+6. `uv run forge --help` — Verify the Forge CLI is available
 
 Typical workflow after setup:
 1. `forge add worker` — Stage a new agent from the template
@@ -129,4 +132,3 @@ Typical workflow after setup:
 3. `forge diff` — Inspect field-level staged vs applied differences
 4. `forge apply` — Activate the staged config
 5. `forge reset` — Discard staged changes and restore the applied config
-6. `uv run forge --help` — Verify the Forge CLI is available
