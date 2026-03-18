@@ -1,0 +1,21 @@
+[project]
+name = "forge-workspace"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "forge-cli",
+    "forge-webhook",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = [
+    "apps/forge-cli",
+    "apps/webhook-monitor",
+]
+
+[tool.uv.sources]
+forge-cli = { workspace = true }
+forge-webhook = { workspace = true }
