@@ -23,8 +23,6 @@ Unified command-line interface for managing agents.
 | `forge remove <id>` | Remove an agent |
 | `forge apply` | Sync staged agent config to live crontab |
 | `forge run <id>` | Run an agent once immediately |
-| `forge kill <id>` | Terminate one running managed agent |
-| `forge kill --all` | Terminate all running managed agents |
 | `forge clear` | Clear active crontab and state |
 | `forge clear --staged` | Clear only staged config |
 | `forge list` | Show all agents (staged, active, unstaged) |
@@ -32,6 +30,8 @@ Unified command-line interface for managing agents.
 | `forge logs` | View agent logs (`-f` to follow) |
 | `forge ui` | Start the web dashboard |
 | `forge wh` | Start webhook monitor with auto-tunnel |
+| `forge kill <id>` | Terminate one running managed agent |
+| `forge kill --all` | Terminate all running managed agents |
 
 Install: `pip install -e apps/forge-cli`
 
