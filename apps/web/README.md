@@ -46,10 +46,10 @@ src/app/
 | Component | File | Purpose |
 |-----------|------|---------|
 | **ResizableLayout** | `resizable-layout.tsx` | Three-panel layout: sidebar (agents), top-right (logs), bottom-right (events). Panels are resizable with drag handles and collapsible on double-click. Sizes persist to localStorage. |
-| **AgentPanel** | `agent-panel.tsx` | Lists agents with status badges (STAGED, ACTIVE, MODIFIED, ORPHAN), role badges, interval/countdown info. Supports add, delete, force-run, apply, and clear actions. Auto-refreshes every 5s. |
+| **AgentPanel** | `agent-panel.tsx` | Lists agents with status badges (STAGED, ACTIVE, MODIFIED, ORPHAN), role badges, interval/countdown info, and current locked issue links when present. Supports add, delete, force-run, apply, and clear actions. Auto-refreshes every 5s. |
 | **LogsPanel** | `logs-panel.tsx` | Streams logs via SSE (`/api/logs/stream`) with polling fallback (5s). Tabs for each agent plus an "All" view. Parses log blocks delimited by `=== RUN ===` / `=== END RUN ===` markers. Max 200 blocks displayed. |
 | **EventsPanel** | `events-panel.tsx` | Polls `/api/events` every 3s. Shows GitHub event cards with action badges (color-coded), issue numbers, actors, labels. Max 50 events displayed. |
-| **IssuesPanel** | `issues-panel.tsx` | Connects to `/api/issues/stream` for live issue snapshots with `/api/issues` polling fallback. Shows GitHub issues with label badges (color-coded by status/role/type). Filterable by status and role labels. Audio alert only when an issue newly gains `role:admin`. |
+| **IssuesPanel** | `issues-panel.tsx` | Connects to `/api/issues/stream` for live issue snapshots with `/api/issues` polling fallback. Shows GitHub issues with label badges (color-coded by status/role/type) plus the active agent holding each issue lock when present. Filterable by status and role labels. Audio alert only when an issue newly gains `role:admin`. |
 
 ### Data Flow
 
@@ -72,14 +72,24 @@ All paths are resolved relative to the repo root via `src/lib/paths.ts`. The rep
 
 ### `GET /api/agents`
 
-Returns all agents with computed status and metadata. Reads staged config from `cron-jobs.json` and active state from `cron-state.json`. Status is derived by comparing both:
+Returns all agents with computed status and metadata. Reads staged config from `cron-jobs.json`, active state from `cron-state.json`, and issue lock ownership from `locks/issues/*.lock/info.json`. Status is derived by comparing both:
 
 - **staged** — in jobs but not state
 - **active** — in both with matching interval
 - **modified** — in both but interval differs
 - **orphan** — in state but not jobs
 
-Running state is detected via `.agent.lock` PID files in agent worktrees.
+Running state is detected via `.agent.lock` PID files in agent worktrees. Agent cards also surface active issue lock ownership from repo lock metadata when a live lock is present.
+
+When an agent holds a valid issue lock under `locks/issues/<number>.lock/info.json`, the response also includes:
+
+- `lockedIssue.number`
+- `lockedIssue.claimedAt`
+- `lockedIssue.repo`
+- `lockedIssue.repoUrl`
+- `lockedIssue.issueUrl`
+
+Malformed lock payloads, missing `info.json`, and stale locks with dead PIDs are ignored.
 
 ### `POST /api/agents`
 
@@ -114,11 +124,21 @@ Server-Sent Events endpoint for live log streaming. Uses `fs.watch()` on log fil
 Returns up to 50 GitHub events from `apps/webhook-monitor/events.jsonl`, parsed from newline-delimited JSON.
 
 ### `GET /api/issues`
-Returns open GitHub issues via `gh issue list`. Response cached server-side for 5s. Returns `{ issues, labels, repo }`, where `labels` is the hardcoded canonical `status`, `role`, and `type` label set defined in app source so the Issues tab can render filter chips even when a label has zero open matches.
+Returns open GitHub issues via `gh issue list`. Response cached server-side for 5s. Returns `{ issues, labels, repo }`, where each issue may also include `workingAgentId` and `workingLock` from repo issue locks, and `labels` is the hardcoded canonical `status`, `role`, and `type` label set defined in app source so the Issues tab can render filter chips even when a label has zero open matches.
+
+Each issue may also include additive lock metadata when a valid issue lock exists:
+
+- `workingAgentId`
+- `workingLock.claimedAt`
+- `workingLock.repo`
+- `workingLock.repoUrl`
+- `workingLock.issueUrl`
+
+Malformed lock payloads, missing `info.json`, and stale locks with dead PIDs are ignored.
 
 ### `GET /api/issues/stream`
 
-Server-Sent Events endpoint for live issue snapshots. Sends an initial `{ issues, labels, repo }` snapshot immediately on connect, then emits updated snapshots when the GitHub event feed changes in ways that affect the Issues tab. The frontend falls back to polling `GET /api/issues` if the stream disconnects.
+Server-Sent Events endpoint for live issue snapshots. Sends an initial `{ issues, labels, repo }` snapshot immediately on connect, then emits updated snapshots when the GitHub event feed changes in ways that affect the Issues tab. Live snapshots include the same additive issue-lock metadata as `GET /api/issues`. The frontend falls back to polling `GET /api/issues` if the stream disconnects.
 
 ## Environment Variables
 

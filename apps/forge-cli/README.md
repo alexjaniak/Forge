@@ -62,7 +62,13 @@ Show all agents grouped by state: staged, active, and unstaged (active but not i
 
 `uv run forge list`
 
-Displays each agent's ID, role, interval, last run time, and next run countdown. Highlights pending changes (new, removed, interval changed) that require `uv run forge cron apply`.
+Displays each agent's ID, role, interval, last run time, next run countdown, and any currently locked issue for active agents. Highlights pending changes (new, removed, interval changed) that require `uv run forge cron apply`.
+
+Example active line with an issue lock:
+
+```text
+  worker-04            worker     5m    last: 12s ago                 next: 4m 48s (issue #892)
+```
 
 ### `forge logs`
 
