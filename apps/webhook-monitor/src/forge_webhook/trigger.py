@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -68,8 +69,10 @@ def _invoke_agent(repo_dir: str, rule: dict, event: dict) -> None:
 
     cmd = [
         str(Path(repo_dir) / "agent-kernel" / "run.sh"),
-        "--workspace", workspace,
-        "--repo", repo_dir,
+        "--workspace",
+        workspace,
+        "--repo",
+        repo_dir,
     ]
     if context:
         cmd.extend(["--context", context])
