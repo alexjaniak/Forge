@@ -5,7 +5,6 @@ requires-python = ">=3.11"
 [manifest]
 members = [
     "forge-cli",
-    "forge-webhook",
     "forge-workspace",
 ]
 
@@ -83,26 +82,13 @@ version = "0.1.0"
 source = { editable = "apps/forge-cli" }
 dependencies = [
     { name = "click" },
-    { name = "forge-webhook" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "click", specifier = ">=8.0" },
-    { name = "forge-webhook", editable = "apps/webhook-monitor" },
-]
-
-[[package]]
-name = "forge-webhook"
-version = "0.1.0"
-source = { editable = "apps/webhook-monitor" }
-dependencies = [
     { name = "fastapi" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "click", specifier = ">=8.0" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34" },
 ]
@@ -113,14 +99,10 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "forge-cli" },
-    { name = "forge-webhook" },
 ]
 
 [package.metadata]
-requires-dist = [
-    { name = "forge-cli", editable = "apps/forge-cli" },
-    { name = "forge-webhook", editable = "apps/webhook-monitor" },
-]
+requires-dist = [{ name = "forge-cli", editable = "apps/forge-cli" }]
 
 [[package]]
 name = "h11"

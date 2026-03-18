@@ -138,6 +138,13 @@ else
   rm -f apps/forge-cli/config.toml.bak
   info "apps/forge-cli/config.toml created"
 fi
+
+if [ -f apps/forge-cli/events.jsonl ]; then
+  info "apps/forge-cli/events.jsonl exists, skipping"
+else
+  : > apps/forge-cli/events.jsonl
+  info "apps/forge-cli/events.jsonl created"
+fi
 echo
 
 # ── Verification ─────────────────────────────────────────────────────
@@ -151,7 +158,7 @@ else
   err "uv run forge --help failed"; errors=1
 fi
 
-if uv run python -c "import click; import forge_cli; import forge_webhook" &>/dev/null; then
+if uv run python -c "import click; import fastapi; import uvicorn; import forge_cli; import forge_cli.webhook_server.main" &>/dev/null; then
   info "Python packages importable"
 else
   err "uv run python import check failed"; errors=1
@@ -165,6 +172,7 @@ fi
 
 [ -f agent-kernel/.env ] && info "agent-kernel/.env exists" || { err "agent-kernel/.env missing"; errors=1; }
 [ -f apps/forge-cli/config.toml ] && info "config.toml exists" || { err "config.toml missing"; errors=1; }
+[ -f apps/forge-cli/trigger-rules.json ] && info "trigger-rules.json exists" || { err "trigger-rules.json missing"; errors=1; }
 
 echo
 if [ "$errors" -ne 0 ]; then
