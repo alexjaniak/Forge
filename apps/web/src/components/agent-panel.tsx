@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-type AgentStatus = "staged" | "active" | "modified" | "orphan";
+type AgentStatus = "new" | "active" | "modified" | "deleted";
 
 interface Agent {
   id: string;
@@ -91,10 +91,10 @@ function RoleBadge({ role }: { role: string }) {
 }
 
 const statusBadgeConfig: Record<AgentStatus, { label: string; bg: string }> = {
-  staged: { label: "STAGED", bg: "bg-accent-yellow" },
+  new: { label: "NEW", bg: "bg-accent-yellow" },
   active: { label: "ACTIVE", bg: "bg-accent-green" },
   modified: { label: "MODIFIED", bg: "bg-accent-yellow" },
-  orphan: { label: "ORPHAN", bg: "bg-accent-red" },
+  deleted: { label: "DELETED", bg: "bg-accent-red" },
 };
 
 function StatusBadge({ status, agent }: { status: AgentStatus; agent: Agent }) {
@@ -163,7 +163,7 @@ function AgentCard({
   };
 
   const isStarted = feedback === "Started";
-  const isStaged = agent.status === "staged";
+  const isStaged = agent.status === "new";
 
   return (
     <div className="rounded-md bg-surface p-2 border border-border hover:bg-surface-hover transition-colors">
@@ -234,8 +234,8 @@ function AgentCard({
 const statusOrder: Record<AgentStatus, number> = {
   active: 0,
   modified: 1,
-  staged: 2,
-  orphan: 3,
+  new: 2,
+  deleted: 3,
 };
 
 function sortAgentsByStatus(agents: Agent[]): Agent[] {
