@@ -46,7 +46,7 @@ src/app/
 | Component | File | Purpose |
 |-----------|------|---------|
 | **ResizableLayout** | `resizable-layout.tsx` | Three-panel layout: sidebar (agents), top-right (logs), bottom-right (events). Panels are resizable with drag handles and collapsible on double-click. Sizes persist to localStorage. |
-| **AgentPanel** | `agent-panel.tsx` | Lists agents with status badges (STAGED, ACTIVE, MODIFIED, ORPHAN), role badges, interval/countdown info. Supports add, delete, force-run, apply, and clear actions. Auto-refreshes every 5s. |
+| **AgentPanel** | `agent-panel.tsx` | Lists agents with status badges (NEW, ACTIVE, MODIFIED, DELETED), role badges, interval/countdown info, and branch context. Supports add, delete, force-run, apply, clear, diff, and reset actions. Auto-refreshes every 5s. |
 | **LogsPanel** | `logs-panel.tsx` | Streams logs via SSE (`/api/logs/stream`) with polling fallback (5s). The dashboard refresh control triggers an immediate refresh even when Logs is not the active tab. Tabs for each agent plus an "All" view. Parses log blocks delimited by `=== RUN ===` / `=== END RUN ===` markers. Max 200 blocks displayed. |
 | **EventsPanel** | `events-panel.tsx` | Polls `/api/events` every 3s and refreshes immediately when the dashboard refresh control is clicked, even if Events is inactive. Shows GitHub event cards with action badges (color-coded), issue numbers, actors, labels. Max 50 events displayed. |
 | **IssuesPanel** | `issues-panel.tsx` | Connects to `/api/issues/stream` for live issue snapshots with `/api/issues` polling fallback. The dashboard refresh control triggers an immediate refresh without disabling the live stream path, even when Issues is inactive. Shows GitHub issues with label badges (color-coded by status/role/type). Filterable by status, role, and type labels. Audio alert only when an issue newly gains `role:admin`. |
@@ -77,18 +77,18 @@ All paths are resolved relative to the repo root via `src/lib/paths.ts`. The rep
 
 ### `GET /api/agents`
 
-Returns all agents with computed status and metadata. Reads staged config from `cron-jobs.json` and active state from `cron-state.json`. Status is derived by comparing both:
+Returns all agents with computed status and metadata. Reads staged config from `cron-jobs.json` and applied state from `cron-state.json`. Status is derived by comparing both:
 
-- **staged** — in jobs but not state
-- **active** — in both with matching interval
-- **modified** — in both but interval differs
-- **orphan** — in state but not jobs
+- **new** — in staged config but not applied state yet
+- **active** — in both with matching applied interval
+- **modified** — in both, but one or more compared fields differ between staged and applied config (`interval`, `prompt`, `contexts`, `agentic`, `workspace`, `repo`, `runtime`, `model`)
+- **deleted** — in applied state but removed from staged config
 
 Running state is detected via `.agent.lock` PID files in agent worktrees.
 
 ### `POST /api/agents`
 
-Creates a new agent. Body: `{ type: "worker"|"planner", id?: string, interval?: string }`. Loads defaults from `templates/{type}.json`. Auto-generates ID as `{type}-{N}` if not provided.
+Creates a new agent. Body: `{ type: "<template-name>", id?: string, interval?: string }`. Loads defaults from `templates/{type}.json`, so any template in `templates/` is valid. Auto-generates ID as `{type}-{N}` if not provided.
 
 ### `DELETE /api/agents/[id]`
 
@@ -105,6 +105,14 @@ Runs `manage.py apply` to activate staged config changes. Returns stdout/stderr.
 ### `POST /api/agents/clear`
 
 Resets staged config to empty.
+
+### `GET /api/agents/diff`
+
+Returns a field-level staged vs applied diff for agent records. Response shape is `{ hasDiff, agents }`, where each entry is tagged as `new`, `modified`, or `deleted`.
+
+### `POST /api/agents/reset`
+
+Rebuilds staged config from the currently applied state while preserving the top-level `stagger` setting from `cron-jobs.json`. If `cron-state.json` does not exist yet, reset treats the applied state as empty and clears staged-only changes instead of returning an error.
 
 ### `GET /api/logs/[agentId]?offset={n}`
 
