@@ -22,6 +22,10 @@ def _load_config():
         Path.cwd() / "config.toml",
         Path(__file__).resolve().parent.parent.parent.parent.parent
         / "apps"
+        / "forge-cli"
+        / "config.toml",
+        Path(__file__).resolve().parent.parent.parent.parent.parent
+        / "apps"
         / "webhook-monitor"
         / "config.toml",
     ]
