@@ -106,6 +106,7 @@ class AddCommandTests(unittest.TestCase):
             self.assertEqual(staged["jobs"][0]["prompt"], "from example only")
             self.assertEqual(staged["jobs"][0]["interval"], "3m")
             self.assertEqual(staged["jobs"][0]["model"], "gpt-5.4")
+            self.assertEqual(staged["jobs"][0]["repo"], "github.com/example/repo")
 
     def test_add_uses_template_model_by_default_and_allows_override(self):
         with tempfile.TemporaryDirectory() as tmpdir:
