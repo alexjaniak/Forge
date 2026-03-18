@@ -4,10 +4,9 @@ import shutil
 import signal
 import subprocess
 import sys
-import tomllib
-from pathlib import Path
 
 import click
+from forge_cli.webhook_server.config import load_toml
 
 
 def _load_config():
@@ -18,23 +17,11 @@ def _load_config():
     if repo and secret:
         return repo, secret
 
-    candidates = [
-        Path.cwd() / "config.toml",
-        Path(__file__).resolve().parent.parent.parent.parent.parent
-        / "apps"
-        / "webhook-monitor"
-        / "config.toml",
-    ]
-    for path in candidates:
-        if path.is_file():
-            with open(path, "rb") as f:
-                toml = tomllib.load(f)
-            if not repo:
-                repo = toml.get("repo", {}).get("name", "")
-            if not secret:
-                secret = toml.get("webhook", {}).get("secret", "")
-            if repo and secret:
-                break
+    toml, _ = load_toml()
+    if not repo:
+        repo = toml.get("repo", {}).get("name", "")
+    if not secret:
+        secret = toml.get("webhook", {}).get("secret", "")
 
     return repo, secret
 
@@ -145,7 +132,7 @@ def wh(port, no_tunnel):
     signal.signal(signal.SIGINT, _signal_handler)
     signal.signal(signal.SIGTERM, _signal_handler)
 
-    from forge_webhook.main import run
+    from forge_cli.webhook_server.main import run
 
     try:
         run()
