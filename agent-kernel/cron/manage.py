@@ -5,6 +5,8 @@ import argparse
 import json
 import os
 import re
+import shlex
+import signal
 import subprocess
 import sys
 import time
@@ -228,6 +230,244 @@ def add_job_to_crontab(crontab, job_id, cron_expr, command):
     if crontab.strip():
         return crontab.strip() + "\n" + entry
     return entry
+
+
+def _resolve_work_repo_dir(repo):
+    if not repo:
+        return REPO_DIR
+    if os.path.isabs(repo):
+        return repo
+    if repo.startswith("github.com/"):
+        return os.path.join(REPO_DIR, ".repos", repo)
+    return os.path.join(REPO_DIR, repo)
+
+
+def _workspace_lock_path(job_id, repo=""):
+    return os.path.join(_resolve_work_repo_dir(repo), ".worktrees", job_id, ".agent.lock")
+
+
+def _list_workspace_ids(repo=""):
+    worktrees_dir = os.path.join(_resolve_work_repo_dir(repo), ".worktrees")
+    if not os.path.isdir(worktrees_dir):
+        return []
+    job_ids = []
+    for entry in os.listdir(worktrees_dir):
+        if os.path.isfile(_workspace_lock_path(entry, repo)):
+            job_ids.append(entry)
+    return sorted(job_ids)
+
+
+def _load_jobs_config():
+    if not os.path.exists(JOBS_FILE):
+        return {"jobs": []}
+    with open(JOBS_FILE) as f:
+        return json.load(f)
+
+
+def _configured_workspace_jobs():
+    jobs = []
+    for job in _load_jobs_config().get("jobs", []):
+        if not job.get("enabled", True):
+            continue
+        jobs.append((job["id"], job.get("repo", "")))
+    return jobs
+
+
+def _configured_repo_roots():
+    repos = {repo for _, repo in _configured_workspace_jobs()}
+    repos.add("")
+    return sorted(repos)
+
+
+def _bulk_workspace_refs():
+    job_refs = list(_configured_workspace_jobs())
+    seen = set(job_refs)
+    for repo in _configured_repo_roots():
+        for job_id in _list_workspace_ids(repo):
+            ref = (job_id, repo)
+            if ref in seen:
+                continue
+            seen.add(ref)
+            job_refs.append(ref)
+    return job_refs
+
+
+def _targeted_workspace_refs(agent_id):
+    configured_refs = [ref for ref in _configured_workspace_jobs() if ref[0] == agent_id]
+    if configured_refs:
+        return configured_refs
+    return [(agent_id, repo) for repo in _configured_repo_roots()]
+
+
+def _read_lock_pid(lock_path):
+    try:
+        with open(lock_path) as f:
+            raw = f.read().strip()
+    except OSError:
+        return None
+
+    if not raw.isdigit():
+        return None
+    return int(raw)
+
+
+def _read_process_command(pid):
+    result = subprocess.run(
+        ["ps", "-p", str(pid), "-o", "command="],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    command = result.stdout.strip()
+    return command or None
+
+
+def _read_process_cwd(pid):
+    result = subprocess.run(
+        ["lsof", "-a", "-p", str(pid), "-d", "cwd", "-Fn"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+
+    for line in result.stdout.splitlines():
+        if line.startswith("n"):
+            cwd = line[1:].strip()
+            return cwd or None
+    return None
+
+
+def _parse_run_command(command):
+    try:
+        argv = shlex.split(command)
+    except ValueError:
+        return None
+
+    run_index = None
+    run_path = None
+    for idx, arg in enumerate(argv):
+        if arg in {"./agent-kernel/run.sh", "agent-kernel/run.sh"} or arg.endswith("/agent-kernel/run.sh"):
+            run_index = idx
+            run_path = arg
+            break
+
+    if run_index is None:
+        return None
+
+    workspace_id = None
+    repo = None
+    idx = run_index + 1
+    while idx < len(argv):
+        arg = argv[idx]
+        if arg == "--workspace" and idx + 1 < len(argv):
+            workspace_id = argv[idx + 1]
+            idx += 2
+            continue
+        if arg == "--repo" and idx + 1 < len(argv):
+            repo = argv[idx + 1]
+            idx += 2
+            continue
+        idx += 1
+
+    return {
+        "argv": argv,
+        "run_path": run_path,
+        "workspace_id": workspace_id,
+        "repo": repo,
+    }
+
+
+def _matches_managed_run(job_id, pid, command, repo=""):
+    parsed = _parse_run_command(command)
+    if not parsed:
+        return None
+
+    run_path = parsed["run_path"]
+    if parsed["workspace_id"] != job_id:
+        return None
+
+    expected_run_path = os.path.join(REPO_DIR, "agent-kernel", "run.sh")
+    if os.path.isabs(run_path):
+        if os.path.normpath(run_path) != expected_run_path:
+            return None
+    else:
+        cwd = _read_process_cwd(pid)
+        if os.path.normpath(cwd or "") != REPO_DIR:
+            return None
+
+    expected_repo_dir = os.path.normpath(_resolve_work_repo_dir(parsed["repo"] or ""))
+    lock_repo_dir = os.path.normpath(_resolve_work_repo_dir(repo))
+    if expected_repo_dir != lock_repo_dir:
+        return None
+
+    return {
+        "agent_id": job_id,
+        "pid": pid,
+        "command": command,
+    }
+
+
+def find_managed_runs(agent_id=None):
+    if agent_id:
+        job_refs = _targeted_workspace_refs(agent_id)
+    else:
+        job_refs = _bulk_workspace_refs()
+
+    runs = []
+    for job_id, repo in job_refs:
+        lock_path = _workspace_lock_path(job_id, repo)
+        pid = _read_lock_pid(lock_path)
+        if pid is None:
+            continue
+        command = _read_process_command(pid)
+        if not command:
+            continue
+        run = _matches_managed_run(job_id, pid, command, repo)
+        if run:
+            runs.append(run)
+    return runs
+
+
+def _pid_is_alive(pid):
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _terminate_pid(pid, timeout=2.0):
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return "SIGTERM"
+
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if not _pid_is_alive(pid):
+            return "SIGTERM"
+        time.sleep(0.05)
+
+    try:
+        os.kill(pid, signal.SIGKILL)
+    except ProcessLookupError:
+        return "SIGTERM"
+    return "SIGKILL"
+
+
+def kill_managed_runs(agent_id=None):
+    runs = find_managed_runs(agent_id)
+    killed = []
+    for run in runs:
+        sig = _terminate_pid(run["pid"])
+        killed.append({**run, "signal": sig})
+    return killed
 
 
 # ── subcommands ───────────────────────────────────────────────
@@ -541,6 +781,21 @@ def cmd_clear(args):
     print(f"Cleared {count} job(s)")
 
 
+def cmd_kill(args):
+    agent_id = None if getattr(args, "all", False) else args.id
+    killed = kill_managed_runs(agent_id=agent_id)
+
+    if not killed:
+        if agent_id:
+            print(f"No running managed agent found for '{agent_id}'")
+        else:
+            print("No running managed agents found")
+        return
+
+    for run in killed:
+        print(f"Killed {run['agent_id']} (pid {run['pid']}, {run['signal']})")
+
+
 # ── main ──────────────────────────────────────────────────────
 
 def main():
@@ -571,8 +826,14 @@ def main():
     p_run.add_argument("id", help="Job identifier from cron-jobs.json")
 
     sub.add_parser("clear", help="Remove all agent-kernel cron jobs")
+    p_kill = sub.add_parser("kill", help="Terminate managed agent runs")
+    p_kill.add_argument("id", nargs="?", help="Job identifier to terminate")
+    p_kill.add_argument("--all", action="store_true", help="Terminate all running managed agents")
 
     args = parser.parse_args()
+    if args.command == "kill" and bool(getattr(args, "id", None)) == bool(getattr(args, "all", False)):
+        parser.error("kill requires exactly one of: <id> or --all")
+
     commands = {
         "apply": cmd_apply,
         "add": cmd_add,
@@ -581,6 +842,7 @@ def main():
         "status": cmd_status,
         "run": cmd_run,
         "clear": cmd_clear,
+        "kill": cmd_kill,
     }
     commands[args.command](args)
 
