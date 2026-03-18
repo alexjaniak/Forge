@@ -79,7 +79,17 @@ Returns all agents with computed status and metadata. Reads staged config from `
 - **modified** — in both but interval differs
 - **orphan** — in state but not jobs
 
-Running state is detected via `.agent.lock` PID files in agent worktrees. Issue cards and agent cards also surface active issue lock ownership from repo lock metadata when a live lock is present.
+Running state is detected via `.agent.lock` PID files in agent worktrees. Agent cards also surface active issue lock ownership from repo lock metadata when a live lock is present.
+
+When an agent holds a valid issue lock under `locks/issues/<number>.lock/info.json`, the response also includes:
+
+- `lockedIssue.number`
+- `lockedIssue.claimedAt`
+- `lockedIssue.repo`
+- `lockedIssue.repoUrl`
+- `lockedIssue.issueUrl`
+
+Malformed lock payloads, missing `info.json`, and stale locks with dead PIDs are ignored.
 
 ### `POST /api/agents`
 
@@ -114,11 +124,21 @@ Server-Sent Events endpoint for live log streaming. Uses `fs.watch()` on log fil
 Returns up to 50 GitHub events from `apps/webhook-monitor/events.jsonl`, parsed from newline-delimited JSON.
 
 ### `GET /api/issues`
-Returns open GitHub issues via `gh issue list`. Response cached server-side for 5s. Returns `{ issues, labels, repo }`, where each issue may also include `workingAgentId` from repo issue locks, and `labels` is the hardcoded canonical `status`, `role`, and `type` label set defined in app source so the Issues tab can render filter chips even when a label has zero open matches.
+Returns open GitHub issues via `gh issue list`. Response cached server-side for 5s. Returns `{ issues, labels, repo }`, where each issue may also include `workingAgentId` and `workingLock` from repo issue locks, and `labels` is the hardcoded canonical `status`, `role`, and `type` label set defined in app source so the Issues tab can render filter chips even when a label has zero open matches.
+
+Each issue may also include additive lock metadata when a valid issue lock exists:
+
+- `workingAgentId`
+- `workingLock.claimedAt`
+- `workingLock.repo`
+- `workingLock.repoUrl`
+- `workingLock.issueUrl`
+
+Malformed lock payloads, missing `info.json`, and stale locks with dead PIDs are ignored.
 
 ### `GET /api/issues/stream`
 
-Server-Sent Events endpoint for live issue snapshots. Sends an initial `{ issues, labels, repo }` snapshot immediately on connect, then emits updated snapshots when the GitHub event feed changes in ways that affect the Issues tab. The frontend falls back to polling `GET /api/issues` if the stream disconnects.
+Server-Sent Events endpoint for live issue snapshots. Sends an initial `{ issues, labels, repo }` snapshot immediately on connect, then emits updated snapshots when the GitHub event feed changes in ways that affect the Issues tab. Live snapshots include the same additive issue-lock metadata as `GET /api/issues`. The frontend falls back to polling `GET /api/issues` if the stream disconnects.
 
 ## Environment Variables
 

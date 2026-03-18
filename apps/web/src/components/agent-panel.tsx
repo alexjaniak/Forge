@@ -22,8 +22,13 @@ interface Agent {
   branch: string | null;
   status: AgentStatus;
   stagedInterval?: string;
-  lockedIssueNumber?: number;
-  lockedIssueUrl?: string;
+  lockedIssue?: {
+    number: number;
+    claimedAt: string;
+    repo: string;
+    repoUrl: string | null;
+    issueUrl: string | null;
+  };
 }
 
 function relativeTime(iso: string): string {
@@ -207,17 +212,17 @@ function AgentCard({
         <span title={agent.lastRun ? `Last run: ${agent.lastRun}` : undefined}>
           {agent.lastRun ? relativeTime(agent.lastRun) : "\u2014"}
         </span>
-        {agent.lockedIssueNumber && agent.lockedIssueUrl && (
+        {agent.lockedIssue?.issueUrl && (
           <>
             <span className="text-muted-foreground">issue</span>
             <a
-              href={agent.lockedIssueUrl}
+              href={agent.lockedIssue.issueUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="text-accent-cyan hover:underline truncate"
-              title={`Open issue #${agent.lockedIssueNumber}`}
+              title={`Open issue #${agent.lockedIssue.number}`}
             >
-              #{agent.lockedIssueNumber}
+              #{agent.lockedIssue.number}
             </a>
           </>
         )}

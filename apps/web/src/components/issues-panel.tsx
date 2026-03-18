@@ -11,6 +11,12 @@ interface Issue {
   labels: { name: string; color: string }[];
   assignees: { login: string }[];
   workingAgentId?: string;
+  workingLock?: {
+    claimedAt: string;
+    repo: string;
+    repoUrl: string | null;
+    issueUrl: string | null;
+  };
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -149,7 +155,14 @@ function IssueCard({ issue, repo }: { issue: Issue; repo: string }) {
           </span>
         ))}
         {issue.workingAgentId && (
-          <span className="text-xs text-muted-foreground ml-auto">
+          <span
+            className="text-xs text-muted-foreground ml-auto"
+            title={
+              issue.workingLock?.claimedAt
+                ? `Locked at ${issue.workingLock.claimedAt}`
+                : undefined
+            }
+          >
             {issue.workingAgentId}
           </span>
         )}
