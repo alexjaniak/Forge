@@ -7,16 +7,17 @@ name = "forge-cli"
 version = "0.1.0"
 description = "Forge — agent orchestration CLI"
 requires-python = ">=3.11"
-dependencies = ["click>=8.0", "forge-webhook>=0.1.0"]
+dependencies = ["click>=8.0", "fastapi>=0.115.12", "uvicorn[standard]>=0.34.0"]
 
 [project.scripts]
 forge = "forge_cli.cli:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
+include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
-[tool.uv.sources]
-forge-webhook = { workspace = true }
+[tool.setuptools.package-data]
+forge_cli = ["webhook_server/_bundled/*.json", "webhook_server/_bundled/*.toml"]

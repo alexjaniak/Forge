@@ -69,7 +69,11 @@ If the state file gets deleted or out of sync, just run `apply` — it reconverg
 
 ## Logs
 
-Each job logs to `agent-kernel/logs/<id>.log` (persistent, gitignored).
+Buffered runs append to `agent-kernel/logs/<target>.log` (persistent, gitignored):
+
+- Cron-managed jobs write to `agent-kernel/logs/<job_id>.log`.
+
+Each completed run is appended atomically as a buffered block starting with `=== RUN <timestamp> duration=<N>s exit=<code> ===`. Workspace lock skips are recorded as `=== SKIP <timestamp> reason="<...>" ===`.
 
 Cron-managed agents always run with tool access in an isolated worktree named after the job ID.
 
