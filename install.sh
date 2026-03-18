@@ -13,18 +13,6 @@ info()  { echo "${GREEN}✓${RESET} $*"; }
 warn()  { echo "${YELLOW}⚠${RESET} $*"; }
 err()   { echo "${RED}✗${RESET} $*" >&2; }
 
-detect_repo_name() {
-  local remote
-  remote=$(git remote get-url origin 2>/dev/null || true)
-  case "$remote" in
-    git@github.com:*.git) echo "${remote#git@github.com:}" | sed 's/\.git$//' ;;
-    https://github.com/*.git) echo "${remote#https://github.com/}" | sed 's/\.git$//' ;;
-    https://github.com/*) echo "${remote#https://github.com/}" ;;
-    github.com/*) echo "$remote" ;;
-    *) echo "" ;;
-  esac
-}
-
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$REPO_ROOT"
 
@@ -150,22 +138,6 @@ else
   rm -f apps/webhook-monitor/config.toml.bak
   info "apps/webhook-monitor/config.toml created"
 fi
-
-template_repo="${FORGE_TEMPLATE_REPO:-$(detect_repo_name)}"
-for example in templates/*.example.json; do
-  [ -f "$example" ] || continue
-  local_copy="${example%.example.json}.json"
-  if [ -f "$local_copy" ]; then
-    info "${local_copy} exists, skipping"
-    continue
-  fi
-  cp "$example" "$local_copy"
-  if [ -n "$template_repo" ]; then
-    sed -i.bak "s|github.com/owner/repo|${template_repo}|g" "$local_copy"
-    rm -f "${local_copy}.bak"
-  fi
-  info "${local_copy} created from ${example##*/}"
-done
 echo
 
 # ── Verification ─────────────────────────────────────────────────────
@@ -215,5 +187,5 @@ ${GREEN}${BOLD}Setup complete!${RESET}
   Next steps:
     1. Edit agent-kernel/.env with your Claude OAuth token
     2. Edit apps/webhook-monitor/config.toml with your webhook secret
-    3. Run: uv run forge add worker && uv run forge cron apply
+    3. Run: uv run forge add worker && uv run forge apply
 EOF

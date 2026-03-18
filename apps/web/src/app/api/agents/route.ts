@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import {
+  availableTemplateTypes,
   atomicWriteJsonSync,
   cronJobsPath,
   cronStatePath,
-  getForgeRoot,
   lockFilePath,
   templatePath,
   worktreePath,
 } from "@/lib/paths";
+import { diffAgentConfig } from "@/lib/agent-config-diff";
 
 interface CronJob {
   id: string;
@@ -19,8 +20,9 @@ interface CronJob {
   agentic: boolean;
   workspace: boolean;
   enabled?: boolean;
-  model?: string;
   repo?: string;
+  runtime?: string;
+  model?: string;
 }
 
 interface CronState {
@@ -32,6 +34,12 @@ interface CronState {
       stagger_offset?: number;
       installed_at?: string;
       contexts?: string[];
+      prompt?: string;
+      agentic?: boolean;
+      workspace?: boolean;
+      repo?: string;
+      runtime?: string;
+      model?: string;
     }
   >;
 }
@@ -89,7 +97,7 @@ function inferRole(id: string): string {
 function buildAgentFromJob(
   job: CronJob,
   jobState: CronState["jobs"][string] | undefined,
-  status: "staged" | "active" | "modified" | "orphan",
+  status: "new" | "active" | "modified" | "deleted",
   stagedInterval?: string
 ) {
   const intervalSeconds = parseIntervalSeconds(job.interval);
@@ -133,6 +141,7 @@ function buildAgentFromJob(
     agentic: job.agentic,
     workspace: job.workspace,
     repo: job.repo ?? "",
+    model: job.model ?? "",
     status,
     ...(stagedInterval ? { stagedInterval } : {}),
   };
@@ -165,15 +174,20 @@ export async function GET() {
     const inState = activeIds.has(job.id);
 
     if (!hasState || !inState) {
-      return buildAgentFromJob(job, undefined, "staged");
+      return buildAgentFromJob(job, undefined, "new");
     }
 
-    const activeInterval = jobState?.interval;
-    if (activeInterval && activeInterval !== job.interval) {
+    const changes = diffAgentConfig(job, jobState ?? {});
+    if (Object.keys(changes).length > 0) {
+      const activeInterval = jobState?.interval;
+
       // interval field shows the active (running) interval
       // stagedInterval shows what it will change to on next apply
-      const modifiedJob = { ...job, interval: activeInterval };
-      return buildAgentFromJob(modifiedJob, jobState, "modified", job.interval);
+      const modifiedJob = activeInterval ? { ...job, interval: activeInterval } : job;
+      const stagedInterval =
+        changes.interval && typeof job.interval === "string" ? job.interval : undefined;
+
+      return buildAgentFromJob(modifiedJob, jobState, "modified", stagedInterval);
     }
 
     return buildAgentFromJob(job, jobState, "active");
@@ -191,28 +205,11 @@ export async function GET() {
         agentic: false,
         workspace: false,
       };
-      agents.push(buildAgentFromJob(orphanJob, jobState, "orphan"));
+      agents.push(buildAgentFromJob(orphanJob, jobState, "deleted"));
     }
   }
 
   return NextResponse.json({ agents });
-}
-
-function availableTemplateTypes(): Set<string> {
-  const templatesDir = path.join(getForgeRoot(), "templates");
-  try {
-    return new Set(
-      fs
-        .readdirSync(templatesDir)
-        .flatMap((f) => {
-          if (f.endsWith(".example.json")) return [f.replace(/\.example\.json$/, "")];
-          if (f.endsWith(".json")) return [f.replace(/\.json$/, "")];
-          return [];
-        })
-    );
-  } catch {
-    return new Set();
-  }
 }
 
 const SAFE_ID_RE = /^[a-z][a-z0-9-]{0,63}$/;
@@ -223,9 +220,9 @@ export async function POST(request: NextRequest) {
     const type: string = body.type;
 
     const validTypes = availableTemplateTypes();
-    if (!type || !validTypes.has(type)) {
+    if (!type || !validTypes.includes(type)) {
       return NextResponse.json(
-        { error: `type must be one of: ${[...validTypes].sort().join(", ")}` },
+        { error: `type must be one of: ${validTypes.join(", ")}` },
         { status: 400 }
       );
     }
@@ -290,8 +287,8 @@ export async function POST(request: NextRequest) {
       contexts: template.contexts ?? [],
       agentic: template.agentic ?? true,
       workspace: template.workspace ?? true,
-      model: body.model ?? template.model ?? "",
       repo: template.repo ?? "",
+      model: body.model ?? template.model ?? "",
     };
 
     data.jobs.push(newJob);
