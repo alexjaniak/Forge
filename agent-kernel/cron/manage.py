@@ -256,20 +256,6 @@ def _list_workspace_ids(repo=""):
             job_ids.append(entry)
     return sorted(job_ids)
 
-
-def _bulk_workspace_refs():
-    job_refs = list(_configured_workspace_jobs())
-    seen = set(job_refs)
-    for repo in _configured_workspace_repos():
-        for job_id in _list_workspace_ids(repo):
-            ref = (job_id, repo)
-            if ref in seen:
-                continue
-            seen.add(ref)
-            job_refs.append(ref)
-    return job_refs
-
-
 def _load_jobs_config():
     if not os.path.exists(JOBS_FILE):
         return {"jobs": []}
@@ -280,22 +266,36 @@ def _load_jobs_config():
 def _configured_workspace_jobs():
     jobs = []
     for job in _load_jobs_config().get("jobs", []):
-        if job.get("workspace"):
-            jobs.append((job["id"], job.get("repo", "")))
+        if not job.get("enabled", True):
+            continue
+        jobs.append((job["id"], job.get("repo", "")))
     return jobs
 
 
-def _configured_workspace_repos():
-    repos = {""}
-    repos.update(repo for _, repo in _configured_workspace_jobs())
+def _configured_repo_roots():
+    repos = {repo for _, repo in _configured_workspace_jobs()}
+    repos.add("")
     return sorted(repos)
 
 
-def _target_workspace_refs(agent_id):
+def _bulk_workspace_refs():
+    job_refs = list(_configured_workspace_jobs())
+    seen = set(job_refs)
+    for repo in _configured_repo_roots():
+        for job_id in _list_workspace_ids(repo):
+            ref = (job_id, repo)
+            if ref in seen:
+                continue
+            seen.add(ref)
+            job_refs.append(ref)
+    return job_refs
+
+
+def _targeted_workspace_refs(agent_id):
     configured_refs = [ref for ref in _configured_workspace_jobs() if ref[0] == agent_id]
     if configured_refs:
         return configured_refs
-    return [(agent_id, repo) for repo in _configured_workspace_repos()]
+    return [(agent_id, repo) for repo in _configured_repo_roots()]
 
 
 def _read_lock_pid(lock_path):
@@ -412,7 +412,7 @@ def _matches_managed_run(job_id, pid, command, repo=""):
 
 def find_managed_runs(agent_id=None):
     if agent_id:
-        job_refs = _target_workspace_refs(agent_id)
+        job_refs = _targeted_workspace_refs(agent_id)
     else:
         job_refs = _bulk_workspace_refs()
 
