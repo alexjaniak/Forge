@@ -8,6 +8,7 @@ def _load_toml() -> dict:
     """Load config.toml from working directory, then package directory as fallback."""
     candidates = [
         Path.cwd() / "config.toml",
+        Path(__file__).resolve().parent.parent.parent.parent / "forge-cli" / "config.toml",
         Path(__file__).resolve().parent.parent.parent / "config.toml",
     ]
     for path in candidates:

@@ -121,5 +121,5 @@ If you prefer manual setup:
 2. `uv sync --all-packages` — Sync the Forge Python workspace
 3. `cd apps/web && npm install` — Install dashboard dependencies
 4. `cp agent-kernel/.env.example agent-kernel/.env` — Configure credentials
-5. `cp apps/webhook-monitor/config.example.toml apps/webhook-monitor/config.toml` — Configure webhooks
+5. `cp apps/forge-cli/config.example.toml apps/forge-cli/config.toml` — Configure webhooks
 6. `uv run forge --help` — Verify the Forge CLI is available
