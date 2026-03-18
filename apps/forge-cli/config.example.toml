@@ -1,7 +1,7 @@
 [webhook]
 secret = ""           # Required — set this or use FORGE_WEBHOOK_SECRET env var
 port = 8471
-events_file = "apps/webhook-monitor/events.jsonl"
+events_file = "apps/forge-cli/events.jsonl"
 
 [trigger]
 rules_file = "apps/forge-cli/trigger-rules.json"
