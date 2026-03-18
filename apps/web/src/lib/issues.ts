@@ -1,9 +1,19 @@
 import { execSync } from "child_process";
 import { readCanonicalIssueLabels } from "@/lib/github-labels";
 import { getForgeRoot } from "@/lib/paths";
+import { IssueLinkMetadata, readIssueLocks } from "@/lib/issue-locks";
+
+interface GitHubIssue {
+  number: number;
+  title: string;
+  labels: { name: string; color: string }[];
+  assignees: { login: string }[];
+  workingAgentId?: string;
+  workingLock?: IssueLinkMetadata & { claimedAt: string };
+}
 
 export interface IssueSnapshot {
-  issues: unknown[];
+  issues: GitHubIssue[];
   labels: ReturnType<typeof readCanonicalIssueLabels>;
   repo: string;
 }
@@ -38,7 +48,8 @@ export async function getIssueSnapshot(options?: {
     { cwd, encoding: "utf-8", timeout: 10000 }
   );
 
-  const issues = JSON.parse(raw) as unknown[];
+  const issues = JSON.parse(raw) as GitHubIssue[];
+  const issueLocks = readIssueLocks();
   let repo = "";
 
   try {
@@ -51,6 +62,24 @@ export async function getIssueSnapshot(options?: {
     // Non-fatal. Issue links fall back to plain cards.
   }
 
-  cache = { issues, labels, repo, ts: now };
-  return { issues, labels, repo };
+  const issuesWithLockMetadata = issues.map((issue) => {
+    const issueLock = issueLocks.get(issue.number);
+    if (!issueLock) {
+      return issue;
+    }
+
+    return {
+      ...issue,
+      workingAgentId: issueLock.agentId,
+      workingLock: {
+        claimedAt: issueLock.claimedAt,
+        repo: issueLock.repo,
+        repoUrl: issueLock.repoUrl,
+        issueUrl: issueLock.issueUrl,
+      },
+    };
+  });
+
+  cache = { issues: issuesWithLockMetadata, labels, repo, ts: now };
+  return { issues: issuesWithLockMetadata, labels, repo };
 }

@@ -10,6 +10,7 @@ import {
   templatePath,
   worktreePath,
 } from "@/lib/paths";
+import { IssueLockMetadata, readIssueLocks } from "@/lib/issue-locks";
 
 interface CronJob {
   id: string;
@@ -89,7 +90,8 @@ function buildAgentFromJob(
   job: CronJob,
   jobState: CronState["jobs"][string] | undefined,
   status: "staged" | "active" | "modified" | "orphan",
-  stagedInterval?: string
+  stagedInterval?: string,
+  issueLock?: IssueLockMetadata
 ) {
   const intervalSeconds = parseIntervalSeconds(job.interval);
   const lastRun = jobState?.last_run ?? null;
@@ -133,6 +135,17 @@ function buildAgentFromJob(
     workspace: job.workspace,
     repo: job.repo ?? "",
     status,
+    ...(issueLock
+      ? {
+          lockedIssue: {
+            number: issueLock.issueNumber,
+            claimedAt: issueLock.claimedAt,
+            repo: issueLock.repo,
+            repoUrl: issueLock.repoUrl,
+            issueUrl: issueLock.issueUrl,
+          },
+        }
+      : {}),
     ...(stagedInterval ? { stagedInterval } : {}),
   };
 }
@@ -158,13 +171,32 @@ export async function GET() {
 
   const stagedIds = new Set(jobs.map((j) => j.id));
   const activeIds = new Set(Object.keys(state.jobs ?? {}));
+  const issueLocksByRepo = new Map<string, ReturnType<typeof readIssueLocks>>();
+
+  function getAgentIssueLock(agentId: string, repo?: string) {
+    const cacheKey = repo ?? "";
+    let locks = issueLocksByRepo.get(cacheKey);
+    if (!locks) {
+      locks = readIssueLocks(repo);
+      issueLocksByRepo.set(cacheKey, locks);
+    }
+
+    for (const lock of locks.values()) {
+      if (lock.agentId === agentId) {
+        return lock;
+      }
+    }
+
+    return undefined;
+  }
 
   const agents = jobs.map((job) => {
     const jobState = state.jobs?.[job.id];
     const inState = activeIds.has(job.id);
+    const issueLock = getAgentIssueLock(job.id, job.repo);
 
     if (!hasState || !inState) {
-      return buildAgentFromJob(job, undefined, "staged");
+      return buildAgentFromJob(job, undefined, "staged", undefined, issueLock);
     }
 
     const activeInterval = jobState?.interval;
@@ -172,10 +204,16 @@ export async function GET() {
       // interval field shows the active (running) interval
       // stagedInterval shows what it will change to on next apply
       const modifiedJob = { ...job, interval: activeInterval };
-      return buildAgentFromJob(modifiedJob, jobState, "modified", job.interval);
+      return buildAgentFromJob(
+        modifiedJob,
+        jobState,
+        "modified",
+        job.interval,
+        issueLock
+      );
     }
 
-    return buildAgentFromJob(job, jobState, "active");
+    return buildAgentFromJob(job, jobState, "active", undefined, issueLock);
   });
 
   // Add orphan agents (in state but not in staged config)
@@ -190,7 +228,15 @@ export async function GET() {
         agentic: false,
         workspace: false,
       };
-      agents.push(buildAgentFromJob(orphanJob, jobState, "orphan"));
+      agents.push(
+        buildAgentFromJob(
+          orphanJob,
+          jobState,
+          "orphan",
+          undefined,
+          getAgentIssueLock(id)
+        )
+      );
     }
   }
 
