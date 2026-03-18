@@ -214,6 +214,51 @@ class ManageKillTests(unittest.TestCase):
             ],
         )
 
+    def test_find_managed_runs_uses_union_of_configured_and_discovered_workspaces(self):
+        with patch.object(manage, "REPO_DIR", "/tmp/forge"), patch.object(
+            manage,
+            "_configured_workspace_jobs",
+            return_value=[("worker-02", "github.com/alexjaniak/Forge")],
+        ), patch.object(
+            manage,
+            "_list_workspace_ids",
+            side_effect=lambda repo="": {
+                "": ["worker-03"],
+                "github.com/alexjaniak/Forge": ["worker-02"],
+            }.get(repo, []),
+        ), patch.object(
+            manage,
+            "_read_lock_pid",
+            side_effect=lambda path: {
+                "/tmp/forge/.repos/github.com/alexjaniak/Forge/.worktrees/worker-02/.agent.lock": 101,
+                "/tmp/forge/.worktrees/worker-03/.agent.lock": 303,
+            }.get(path),
+        ), patch.object(
+            manage,
+            "_read_process_command",
+            side_effect=lambda pid: {
+                101: "/bin/bash /tmp/forge/agent-kernel/run.sh --workspace worker-02 --repo github.com/alexjaniak/Forge 'prompt'",
+                303: "/bin/bash /tmp/forge/agent-kernel/run.sh --workspace worker-03 'prompt'",
+            }.get(pid),
+        ):
+            runs = manage.find_managed_runs()
+
+        self.assertEqual(
+            runs,
+            [
+                {
+                    "agent_id": "worker-02",
+                    "pid": 101,
+                    "command": "/bin/bash /tmp/forge/agent-kernel/run.sh --workspace worker-02 --repo github.com/alexjaniak/Forge 'prompt'",
+                },
+                {
+                    "agent_id": "worker-03",
+                    "pid": 303,
+                    "command": "/bin/bash /tmp/forge/agent-kernel/run.sh --workspace worker-03 'prompt'",
+                },
+            ],
+        )
+
     def test_find_managed_runs_rejects_reused_pid_from_other_checkout(self):
         with patch.object(manage, "REPO_DIR", "/tmp/forge"), patch.object(
             manage, "_configured_workspace_jobs", return_value=[]
@@ -231,6 +276,24 @@ class ManageKillTests(unittest.TestCase):
             manage,
             "_read_process_cwd",
             return_value="/tmp/other-checkout",
+        ):
+            runs = manage.find_managed_runs()
+
+        self.assertEqual(runs, [])
+
+    def test_find_managed_runs_rejects_repo_mismatch_for_same_workspace_id(self):
+        with patch.object(manage, "REPO_DIR", "/tmp/forge"), patch.object(
+            manage,
+            "_configured_workspace_jobs",
+            return_value=[("worker-02", "github.com/acme/one")],
+        ), patch.object(
+            manage,
+            "_read_lock_pid",
+            return_value=101,
+        ), patch.object(
+            manage,
+            "_read_process_command",
+            return_value="/bin/bash /tmp/forge/agent-kernel/run.sh --workspace worker-02 --repo github.com/acme/two 'prompt'",
         ):
             runs = manage.find_managed_runs()
 
@@ -254,6 +317,28 @@ class ManageKillTests(unittest.TestCase):
                 {"agent_id": "worker-03", "pid": 202, "command": "cmd-2", "signal": "SIGKILL"},
             ],
         )
+
+    def test_terminate_pid_treats_missing_process_during_term_as_exited(self):
+        with patch.object(manage, "os") as os_module:
+            os_module.kill.side_effect = ProcessLookupError
+
+            signal_used = manage._terminate_pid(101)
+
+        self.assertEqual(signal_used, "SIGTERM")
+
+    def test_terminate_pid_treats_missing_process_during_kill_as_exited(self):
+        with patch.object(manage, "_pid_is_alive", return_value=True), patch.object(
+            manage, "time"
+        ) as time_module, patch.object(
+            manage, "os"
+        ) as os_module:
+            time_module.time.side_effect = [0.0, 0.0, 3.0]
+            time_module.sleep.return_value = None
+            os_module.kill.side_effect = [None, ProcessLookupError]
+
+            signal_used = manage._terminate_pid(101)
+
+        self.assertEqual(signal_used, "SIGTERM")
 
     def test_cmd_kill_prints_specific_no_match_message(self):
         with patch.object(manage, "kill_managed_runs", return_value=[]), patch(

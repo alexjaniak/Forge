@@ -257,6 +257,21 @@ def _list_workspace_ids(repo=""):
     return sorted(job_ids)
 
 
+def _bulk_workspace_refs():
+    job_refs = list(_configured_workspace_jobs())
+    seen = set(job_refs)
+    repos = {repo for _, repo in job_refs}
+    repos.add("")
+    for repo in sorted(repos):
+        for job_id in _list_workspace_ids(repo):
+            ref = (job_id, repo)
+            if ref in seen:
+                continue
+            seen.add(ref)
+            job_refs.append(ref)
+    return job_refs
+
+
 def _configured_workspace_jobs():
     state = load_state()
     jobs = []
@@ -348,7 +363,7 @@ def _parse_run_command(command):
     }
 
 
-def _matches_managed_run(job_id, pid, command):
+def _matches_managed_run(job_id, pid, command, repo=""):
     parsed = _parse_run_command(command)
     if not parsed:
         return None
@@ -366,6 +381,11 @@ def _matches_managed_run(job_id, pid, command):
         if os.path.normpath(cwd or "") != REPO_DIR:
             return None
 
+    expected_repo_dir = os.path.normpath(_resolve_work_repo_dir(parsed["repo"] or ""))
+    lock_repo_dir = os.path.normpath(_resolve_work_repo_dir(repo))
+    if expected_repo_dir != lock_repo_dir:
+        return None
+
     return {
         "agent_id": job_id,
         "pid": pid,
@@ -378,9 +398,7 @@ def find_managed_runs(agent_id=None):
         configured_jobs = dict(_configured_workspace_jobs())
         job_refs = [(agent_id, configured_jobs.get(agent_id, ""))]
     else:
-        job_refs = _configured_workspace_jobs()
-        if not job_refs:
-            job_refs = [(job_id, "") for job_id in _list_workspace_ids()]
+        job_refs = _bulk_workspace_refs()
 
     runs = []
     for job_id, repo in job_refs:
@@ -391,7 +409,7 @@ def find_managed_runs(agent_id=None):
         command = _read_process_command(pid)
         if not command:
             continue
-        run = _matches_managed_run(job_id, pid, command)
+        run = _matches_managed_run(job_id, pid, command, repo)
         if run:
             runs.append(run)
     return runs
@@ -408,7 +426,10 @@ def _pid_is_alive(pid):
 
 
 def _terminate_pid(pid, timeout=2.0):
-    os.kill(pid, signal.SIGTERM)
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return "SIGTERM"
 
     deadline = time.time() + timeout
     while time.time() < deadline:
@@ -416,7 +437,10 @@ def _terminate_pid(pid, timeout=2.0):
             return "SIGTERM"
         time.sleep(0.05)
 
-    os.kill(pid, signal.SIGKILL)
+    try:
+        os.kill(pid, signal.SIGKILL)
+    except ProcessLookupError:
+        return "SIGTERM"
     return "SIGKILL"
 
 
