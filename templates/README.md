@@ -9,8 +9,7 @@ JSON files that define the runtime configuration for each agent role. Each templ
   "interval": "2m",
   "prompt": "The instruction given to the agent each run.",
   "contexts": ["contexts/IDENTITY.md", "contexts/WORKER.md", "..."],
-  "agentic": true,
-  "workspace": true
+  "repo": "github.com/owner/repo"
 }
 ```
 
@@ -19,8 +18,7 @@ JSON files that define the runtime configuration for each agent role. Each templ
 | `interval` | Cron scheduling interval between runs |
 | `prompt` | The task prompt passed to the agent |
 | `contexts` | Ordered list of context files composed into the system prompt |
-| `agentic` | Whether the agent runs in agentic mode with tool access |
-| `workspace` | Whether the agent gets an isolated git worktree |
+| `repo` | Target repo cloned or reused for the agent's isolated worktree |
 
 ## Available templates
 
@@ -33,3 +31,4 @@ JSON files that define the runtime configuration for each agent role. Each templ
 ## Usage
 
 Templates are loaded by the Forge CLI (`apps/forge-cli`) and web dashboard (`apps/web`) to launch agent runs via `agent-kernel/run.sh`.
+Agents always run with tool access in an isolated worktree keyed by agent ID, so those runtime behaviors are no longer configured per template.
