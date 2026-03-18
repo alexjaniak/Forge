@@ -1,0 +1,9 @@
+[webhook]
+port = 8471
+
+[trigger]
+rules_file = "./trigger-rules.json"
+
+[repo]
+name = ""
+dir = ""

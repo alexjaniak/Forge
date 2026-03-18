@@ -6,6 +6,7 @@ import subprocess
 import sys
 
 import click
+
 from forge_cli.webhook_server.config import load_toml
 
 
