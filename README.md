@@ -20,18 +20,20 @@ Unified command-line interface for managing agents.
 | Command | Description |
 |---------|-------------|
 | `forge add <role>` | Add an agent from a template (worker, planner, super) |
-| `forge remove <id>` | Remove an agent |
+| `forge rm <id>` | Remove staged agents by ID |
 | `forge apply` | Sync staged agent config to live crontab |
+| `forge diff` | Show git-style staged vs applied config changes |
+| `forge reset [agent-id]` | Reset staged config to match applied state |
 | `forge run <id>` | Run an agent once immediately |
-| `forge clear` | Clear active crontab and state |
-| `forge clear --staged` | Clear only staged config |
-| `forge list` | Show all agents (staged, active, unstaged) |
-| `forge status` | Alias for `forge list` |
+| `forge clear` | Clear staged config (`cron-jobs.json`) |
+| `forge status` | Show staged changes and applied agents |
 | `forge logs` | View agent logs (`-f` to follow) |
 | `forge ui` | Start the web dashboard |
 | `forge locks list` | Show all held issue/PR locks across repos |
 | `forge locks clear` | Clear stale locks (`--all` for all, `--all --force` to skip confirm) |
 | `forge wh` | Start webhook monitor with auto-tunnel |
+| `forge kill <id>` | Terminate one running managed agent |
+| `forge kill --all` | Terminate all running managed agents |
 
 Run from the repo workspace: `uv run forge --help`
 

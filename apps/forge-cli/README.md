@@ -1,6 +1,6 @@
 # forge-cli
 
-Agent orchestration CLI for Forge. Manage agents, cron jobs, webhooks, and logs from a single command.
+Agent orchestration CLI for Forge. Manage staged/applied agents, webhooks, logs, and the local UI from a single command.
 
 ## Installation
 
@@ -42,27 +42,41 @@ uv run forge add worker --id worker-05 --interval 10m
 uv run forge add --list
 ```
 
-The agent is staged in `cron-jobs.json`. Run `uv run forge cron apply` to activate.
+The agent is staged in `cron-jobs.json`. Run `uv run forge apply` to activate.
 
-### `forge remove`
+### `forge rm`
 
 Remove an agent by ID.
 
-`uv run forge remove AGENT_ID`
+`uv run forge rm AGENT_ID`
 
 ```bash
-uv run forge remove worker-03
+uv run forge rm worker-03
 ```
 
-Removes the agent from `cron-jobs.json`. Run `uv run forge cron apply` to deactivate.
+Removes the agent from `cron-jobs.json`. Run `uv run forge apply` to deactivate.
 
-### `forge list` / `forge status`
+### `forge status`
 
-Show all agents grouped by state: staged, active, and unstaged (active but not in config).
+Show the git-style staged vs applied agent status view.
 
-`uv run forge list`
+`uv run forge status`
 
-Displays each agent's ID, role, interval, last run time, and next run countdown. Highlights pending changes (new, removed, interval changed) that require `uv run forge cron apply`.
+Displays pending staged changes (`new`, `modified`, `deleted`) plus the currently applied agents with last/next run timing. A staged change to any diffed field is surfaced as `modified`.
+
+### `forge diff`
+
+Show field-by-field differences between staged config and applied state.
+
+`uv run forge diff`
+
+Highlights changes to `interval`, `prompt`, `contexts`, `agentic`, `workspace`, `repo`, `runtime`, `model`, and `enabled`.
+
+### `forge apply`
+
+Apply staged config to the managed crontab.
+
+`uv run forge apply`
 
 ### `forge logs`
 
@@ -87,6 +101,30 @@ uv run forge logs worker-01 -f
 uv run forge logs -n 200
 ```
 
+### `forge kill`
+
+Terminate a running managed agent process.
+
+```
+forge kill AGENT_ID
+forge kill --all
+```
+
+| Flag | Description |
+|------|-------------|
+| `AGENT_ID` | Terminate one running managed agent by ID |
+| `--all` | Terminate all running managed agents |
+
+```bash
+# Stop one managed agent run
+forge kill worker-01
+
+# Stop all currently running managed agent runs
+forge kill --all
+```
+
+If no matching managed run is active, Forge prints a message instead of failing.
+
 ### `forge clear`
 
 Reset staged config — remove all agents from `cron-jobs.json`.
@@ -101,70 +139,31 @@ Reset staged config — remove all agents from `cron-jobs.json`.
 uv run forge clear -y
 ```
 
-Run `uv run forge cron apply` afterwards to deactivate the cleared agents.
+Run `uv run forge apply` afterwards to deactivate the cleared agents.
 
-### `forge cron`
+### `forge reset`
 
-Manage agent cron jobs directly.
+Discard staged changes and restore the staged config from applied state.
 
-#### `forge cron apply`
+`uv run forge reset`
 
-Sync the system crontab to match `cron-jobs.json`.
+### `forge run`
 
-```bash
-uv run forge cron apply
-```
+Run a single agent immediately.
 
-#### `forge cron add`
+`uv run forge run AGENT_ID`
 
-Add a single cron job.
+### `forge locks`
 
-`uv run forge cron add ID INTERVAL PROMPT [--agentic] [--workspace] [--context TEXT] [--repo REPO]`
+Inspect repo/issue lock state used by the agent kernel.
 
-**Arguments:**
+`uv run forge locks list`
 
-| Argument | Description |
-|----------|-------------|
-| `ID` | Job identifier |
-| `INTERVAL` | Schedule interval (e.g. `5m`, `1h`) |
-| `PROMPT` | Prompt text for the agent |
+### `forge ui`
 
-**Options:**
+Start the local Forge web UI.
 
-| Flag | Description |
-|------|-------------|
-| `--agentic` | Enable tool use |
-| `--workspace` | Run in isolated git worktree |
-| `--context TEXT` | Context file path (repeatable) |
-| `--repo REPO` | Target repo |
-
-```bash
-uv run forge cron add summary-bot 1h "Summarize recent activity" --context contexts/IDENTITY.md
-```
-
-#### `forge cron remove`
-
-Remove a cron job by ID.
-
-```bash
-uv run forge cron remove summary-bot
-```
-
-#### `forge cron run`
-
-Run a job once immediately.
-
-```bash
-uv run forge cron run worker-01
-```
-
-#### `forge cron clear`
-
-Remove all agent-kernel cron jobs from the system crontab.
-
-```bash
-uv run forge cron clear
-```
+`uv run forge ui`
 
 ### `forge wh`
 

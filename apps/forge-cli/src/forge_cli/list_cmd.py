@@ -1,10 +1,13 @@
-"""forge list — unified staged vs active agent view."""
+"""forge status — git-style agent status view."""
 
+import json
 import os
 import re
+from datetime import datetime, timezone
 
 import click
 
+from forge_cli.diff_cmd import get_modified_fields
 from forge_cli.paths import _get_manage
 
 
@@ -27,15 +30,14 @@ def _format_relative(seconds):
     return f"{secs}s"
 
 
-@click.command("list")
+@click.command("status")
 def list_cmd():
-    """Show all agents grouped by state (staged, active, orphan)."""
+    """Show agent status (staged changes and applied agents)."""
     manage = _get_manage()
 
     # Load staged config (cron-jobs.json)
     jobs_file = manage.JOBS_FILE
     if os.path.exists(jobs_file):
-        import json
         with open(jobs_file) as f:
             config = json.load(f)
         staged_jobs = {j["id"]: j for j in config.get("jobs", []) if j.get("enabled", True)}
@@ -50,62 +52,46 @@ def list_cmd():
     active_ids = set(active_jobs.keys())
 
     new_ids = staged_ids - active_ids
-    removed_ids = active_ids - staged_ids
+    deleted_ids = active_ids - staged_ids
     common_ids = staged_ids & active_ids
 
-    changed_ids = set()
+    modified_ids = set()
     for agent_id in common_ids:
-        if staged_jobs[agent_id]["interval"] != active_jobs[agent_id].get("interval"):
-            changed_ids.add(agent_id)
+        if get_modified_fields(staged_jobs[agent_id], active_jobs[agent_id]):
+            modified_ids.add(agent_id)
 
-    has_staged = new_ids or removed_ids or changed_ids
+    has_changes = new_ids or deleted_ids or modified_ids
 
-    # ── Staged section ──
-    if has_staged:
-        click.echo(click.style("Staged (not yet applied):", bold=True))
+    # ── Changes to be applied ──
+    if has_changes:
+        click.echo(click.style("Changes to be applied:", bold=True))
+        click.echo(click.style('  (use "forge reset" to discard changes)', dim=True))
+        click.echo()
         for agent_id in sorted(new_ids):
-            job = staged_jobs[agent_id]
-            role = _role_from_id(agent_id)
-            interval = job["interval"]
             click.echo(
-                f"  {click.style('+', fg='green')} "
-                f"{click.style(agent_id, fg='green'):<28} "
-                f"{role:<10} {interval:<6}"
-                f"{click.style('(new — run `forge apply` to activate)', dim=True)}"
+                f"        {click.style('new:', fg='green')}      {click.style(agent_id, fg='green')}"
             )
-        for agent_id in sorted(removed_ids):
-            info = active_jobs[agent_id]
-            role = _role_from_id(agent_id)
-            interval = info.get("interval", "?")
+        for agent_id in sorted(modified_ids):
+            changed_fields = [field for field, _, _ in get_modified_fields(staged_jobs[agent_id], active_jobs[agent_id])]
+            summary = ", ".join(changed_fields)
             click.echo(
-                f"  {click.style('-', fg='red')} "
-                f"{click.style(agent_id, fg='red'):<28} "
-                f"{role:<10} {interval:<6}"
-                f"{click.style('(removed — run `forge apply` to activate)', dim=True)}"
+                f"        {click.style('modified:', fg='yellow')} {click.style(agent_id, fg='yellow')}"
+                f"  {click.style(f'(fields: {summary})', fg='yellow')}"
             )
-        for agent_id in sorted(changed_ids):
-            old_interval = active_jobs[agent_id].get("interval", "?")
-            new_interval = staged_jobs[agent_id]["interval"]
-            role = _role_from_id(agent_id)
+        for agent_id in sorted(deleted_ids):
             click.echo(
-                f"  {click.style('~', fg='yellow')} "
-                f"{click.style(agent_id, fg='yellow'):<28} "
-                f"{role:<10} {old_interval} → {new_interval}  "
-                f"{click.style('(interval changed)', dim=True)}"
+                f"        {click.style('deleted:', fg='red')}  {click.style(agent_id, fg='red')}"
             )
         click.echo()
 
-    # ── Active section ──
-    # Show agents that are both staged and active (not orphans, not pending removal)
-    synced_ids = common_ids - changed_ids
-    if synced_ids or changed_ids:
-        from datetime import datetime, timezone
+    # ── Applied agents ──
+    synced_ids = common_ids - modified_ids
+    applied_ids = synced_ids | modified_ids
+    if applied_ids:
         now = datetime.now(timezone.utc)
-
-        click.echo(click.style("Active:", bold=True))
-        for agent_id in sorted(synced_ids | changed_ids):
+        click.echo(click.style("Applied agents:", bold=True))
+        for agent_id in sorted(applied_ids):
             info = active_jobs[agent_id]
-            role = _role_from_id(agent_id)
             interval = info.get("interval", "?")
             last_run = info.get("last_run")
 
@@ -126,34 +112,11 @@ def list_cmd():
                 next_str = "next: —"
 
             click.echo(
-                f"  {agent_id:<20} {role:<10} {interval:<6}"
+                f"        {agent_id:<16} {interval:<6}"
                 f"{click.style(last_str, fg='cyan'):<30} "
                 f"{click.style(next_str, fg='cyan')}"
             )
         click.echo()
-    elif not active_jobs:
-        click.echo(click.style("Active:", bold=True))
-        click.echo(
-            click.style("  No active agents (run `forge apply` first)", dim=True)
-        )
-        click.echo()
 
-    # ── Unstaged (orphan) section ──
-    orphan_ids = removed_ids  # active but not in staged config
-    if orphan_ids:
-        from datetime import datetime, timezone
-        now = datetime.now(timezone.utc)
-
-        click.echo(click.style("Unstaged (active but not in config):", bold=True))
-        for agent_id in sorted(orphan_ids):
-            info = active_jobs[agent_id]
-            role = _role_from_id(agent_id)
-            interval = info.get("interval", "?")
-            click.echo(
-                f"  {agent_id:<20} {role:<10} {interval:<6}"
-                f"{click.style('(orphan — active in crontab but missing from cron-jobs.json)', dim=True)}"
-            )
-        click.echo()
-
-    if not has_staged and not active_jobs:
+    if not has_changes and not active_jobs:
         click.echo("No agents configured.")
