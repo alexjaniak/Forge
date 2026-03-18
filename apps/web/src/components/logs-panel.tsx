@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useLayoutEffect } from "react";
-import { LogBlock, parseLogBlocks } from "@/lib/log-parser";
+import { LogBlock, LogParserState, parseLogBlocks } from "@/lib/log-parser";
 import { getAgentColor } from "@/lib/colors";
 
 const MAX_BLOCKS = 200;
@@ -13,6 +13,7 @@ interface AgentOffset {
   [agentId: string]: number;
 }
 
+type AgentParserState = Record<string, LogParserState>;
 type AgentFilterState = Record<string, boolean>;
 
 function loadFilterState(): AgentFilterState {
@@ -50,18 +51,17 @@ export function LogsPanel({ refreshKey }: { refreshKey?: number }) {
   const [filterOpen, setFilterOpen] = useState(false);
 
   const offsetsRef = useRef<AgentOffset>({});
+  const parserStatesRef = useRef<AgentParserState>({});
   const containerRef = useRef<HTMLDivElement>(null);
   const prevScrollTop = useRef(0);
   const eventSourceRef = useRef<EventSource | null>(null);
   const fallbackTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Persist filter state on change
   useEffect(() => {
     saveFilterState(agentFilter);
   }, [agentFilter]);
 
-  // Ensure new agents default to visible
   useEffect(() => {
     setAgentFilter((prev) => {
       let changed = false;
@@ -76,7 +76,6 @@ export function LogsPanel({ refreshKey }: { refreshKey?: number }) {
     });
   }, [agents]);
 
-  // Close dropdown on outside click
   useEffect(() => {
     if (!filterOpen) return;
     function handleClick(e: MouseEvent) {
@@ -131,7 +130,14 @@ export function LogsPanel({ refreshKey }: { refreshKey?: number }) {
         let changed = false;
         for (const b of newBlocks) {
           const existing = blockMap.get(b.key);
-          if (!existing || (b.endTimestamp && !existing.endTimestamp)) {
+          if (
+            !existing ||
+            existing.type !== b.type ||
+            existing.content !== b.content ||
+            existing.skipReason !== b.skipReason ||
+            existing.duration !== b.duration ||
+            existing.exitCode !== b.exitCode
+          ) {
             blockMap.set(b.key, b);
             changed = true;
           }
@@ -140,8 +146,8 @@ export function LogsPanel({ refreshKey }: { refreshKey?: number }) {
         const merged = Array.from(blockMap.values());
         merged.sort(
           (a, b) =>
-            new Date(a.endTimestamp ?? a.timestamp).getTime() -
-            new Date(b.endTimestamp ?? b.timestamp).getTime()
+            new Date(a.timestamp).getTime() -
+            new Date(b.timestamp).getTime()
         );
         return merged.slice(-MAX_BLOCKS);
       });
@@ -175,7 +181,11 @@ export function LogsPanel({ refreshKey }: { refreshKey?: number }) {
     const newBlocks: LogBlock[] = [];
     for (const result of results) {
       if (result.data) {
-        newBlocks.push(...parseLogBlocks(result.agentId, result.data));
+        const parsed = parseLogBlocks(result.agentId, result.data, {
+          finalize: true,
+        });
+        newBlocks.push(...parsed.blocks);
+        parserStatesRef.current[result.agentId] = parsed.state;
       }
       offsetsRef.current[result.agentId] = result.offset;
     }
@@ -202,7 +212,11 @@ export function LogsPanel({ refreshKey }: { refreshKey?: number }) {
     const newBlocks: LogBlock[] = [];
     for (const result of results) {
       if (result.data) {
-        newBlocks.push(...parseLogBlocks(result.agentId, result.data));
+        const parsed = parseLogBlocks(result.agentId, result.data, {
+          state: parserStatesRef.current[result.agentId],
+        });
+        newBlocks.push(...parsed.blocks);
+        parserStatesRef.current[result.agentId] = parsed.state;
       }
       offsetsRef.current[result.agentId] = result.offset;
     }
@@ -227,6 +241,7 @@ export function LogsPanel({ refreshKey }: { refreshKey?: number }) {
   useEffect(() => {
     setBlocks([]);
     offsetsRef.current = {};
+    parserStatesRef.current = {};
 
     fetchInitialLogs();
 
@@ -236,8 +251,11 @@ export function LogsPanel({ refreshKey }: { refreshKey?: number }) {
     es.addEventListener("log", (event) => {
       const { agentId, data, offset } = JSON.parse(event.data);
       if (data) {
-        const parsed = parseLogBlocks(agentId, data);
-        mergeBlocks(parsed);
+        const parsed = parseLogBlocks(agentId, data, {
+          state: parserStatesRef.current[agentId],
+        });
+        mergeBlocks(parsed.blocks);
+        parserStatesRef.current[agentId] = parsed.state;
       }
       offsetsRef.current[agentId] = offset;
 
@@ -295,7 +313,13 @@ export function LogsPanel({ refreshKey }: { refreshKey?: number }) {
 
   const displayBlocks = blocks.filter((b) => {
     if (!isAgentVisible(b.agentId)) return false;
-    if (filter && !b.content.toLowerCase().includes(filter.toLowerCase())) return false;
+    if (filter) {
+      const q = filter.toLowerCase();
+      return (
+        b.content.toLowerCase().includes(q) ||
+        (b.skipReason && b.skipReason.toLowerCase().includes(q))
+      );
+    }
     return true;
   });
 
@@ -320,7 +344,6 @@ export function LogsPanel({ refreshKey }: { refreshKey?: number }) {
           </button>
           {filterOpen && (
             <div className="absolute top-full left-0 mt-1 z-50 bg-surface border border-border rounded-md shadow-lg min-w-[200px]">
-              {/* Role pills */}
               {ROLES.some((r) => agents.some((a) => getRole(a) === r)) && (
                 <div className="flex items-center gap-1.5 px-3 py-2 border-b border-border">
                   {ROLES.map((role) => {
@@ -345,7 +368,6 @@ export function LogsPanel({ refreshKey }: { refreshKey?: number }) {
                   })}
                 </div>
               )}
-              {/* Agent checkboxes */}
               <div className="py-1 max-h-[240px] overflow-y-auto">
                 {agents.length === 0 ? (
                   <div className="px-3 py-2 text-sm text-muted-foreground">No agents</div>
@@ -405,31 +427,21 @@ export function LogsPanel({ refreshKey }: { refreshKey?: number }) {
             <p className="text-muted-foreground text-sm">No logs yet</p>
           </div>
         ) : (
-          displayBlocks.map((block) => (
-            <LogCard key={block.key} block={block} />
-          ))
+          displayBlocks.map((block) =>
+            block.type === "skip" ? (
+              <SkipCard key={block.key} block={block} />
+            ) : (
+              <LogCard key={block.key} block={block} />
+            )
+          )
         )}
       </div>
     </div>
   );
 }
 
-function formatDuration(startIso: string, endIso: string): string {
-  const ms = new Date(endIso).getTime() - new Date(startIso).getTime();
-  if (ms < 0) return "";
-  const totalSec = Math.floor(ms / 1000);
-  const min = Math.floor(totalSec / 60);
-  const sec = totalSec % 60;
-  if (min > 0) return `${min}m ${sec}s`;
-  return `${sec}s`;
-}
-
 function LogCard({ block }: { block: LogBlock }) {
   const agentColor = getAgentColor(block.agentId);
-  const duration =
-    block.endTimestamp && block.timestamp
-      ? formatDuration(block.timestamp, block.endTimestamp)
-      : "";
   const [expanded, setExpanded] = useState(false);
   const [overflows, setOverflows] = useState(false);
   const contentRef = useRef<HTMLPreElement>(null);
@@ -457,22 +469,23 @@ function LogCard({ block }: { block: LogBlock }) {
         >
           {block.agentId}
         </span>
-        <span className="text-sm text-muted-foreground">
-          {block.displayTime}
-          {block.displayEndTime && (
-            <>
-              <span className="text-muted-foreground/60">
-                {" "}
-                → {block.displayEndTime}
-              </span>
-              {duration && (
-                <span className="text-muted-foreground text-xs ml-1">
-                  ({duration})
-                </span>
-              )}
-            </>
-          )}
-        </span>
+        <span className="text-sm text-muted-foreground">{block.displayTime}</span>
+        {block.duration != null && (
+          <span className="text-xs text-muted-foreground bg-surface-hover px-1.5 py-0.5 rounded">
+            {block.duration}s
+          </span>
+        )}
+        {block.exitCode != null && (
+          <span
+            className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+              block.exitCode === 0
+                ? "bg-green-500/15 text-green-400"
+                : "bg-red-500/15 text-red-400"
+            }`}
+          >
+            exit {block.exitCode}
+          </span>
+        )}
       </div>
       <div className="relative">
         <pre
@@ -498,6 +511,29 @@ function LogCard({ block }: { block: LogBlock }) {
         >
           {expanded ? "▲ Show less" : "▼ Show more"}
         </button>
+      )}
+    </div>
+  );
+}
+
+function SkipCard({ block }: { block: LogBlock }) {
+  const agentColor = getAgentColor(block.agentId);
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5 text-sm text-muted-foreground bg-surface/50 border border-border/50 rounded">
+      <span
+        className="font-semibold px-1.5 py-0.5 rounded text-xs"
+        style={{
+          backgroundColor: agentColor + "20",
+          color: agentColor,
+        }}
+      >
+        {block.agentId}
+      </span>
+      <span>{block.displayTime}</span>
+      <span className="text-muted-foreground/60">skipped</span>
+      {block.skipReason && (
+        <span className="text-muted-foreground/80">{block.skipReason}</span>
       )}
     </div>
   );
