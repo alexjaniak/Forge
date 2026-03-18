@@ -1,14 +1,42 @@
 import os
+import subprocess
 import sys
 import tomllib
+from importlib.resources import files
 from pathlib import Path
 
 
-_BUNDLED_CONFIG_PATH = Path(__file__).resolve().parents[3] / "config.toml"
+def _bundled_asset_path(name: str) -> Path:
+    return Path(str(files("forge_cli.webhook_server").joinpath("_bundled").joinpath(name)))
+
+
+def _repo_root() -> Path | None:
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return None
+
+    return Path(result.stdout.strip())
+
+
+def _config_search_paths() -> tuple[Path, ...]:
+    paths: list[Path] = [Path.cwd() / "config.toml"]
+    repo_root = _repo_root()
+    if repo_root is not None:
+        repo_local_path = repo_root / "apps" / "forge-cli" / "config.toml"
+        if repo_local_path not in paths:
+            paths.append(repo_local_path)
+    paths.append(_bundled_asset_path("config.toml"))
+    return tuple(paths)
 
 
 def find_config_path() -> Path | None:
-    for path in (_BUNDLED_CONFIG_PATH, Path.cwd() / "config.toml"):
+    for path in _config_search_paths():
         if path.is_file():
             return path
     return None
@@ -50,17 +78,22 @@ def get_config() -> dict:
 
     events_file = os.environ.get("FORGE_EVENTS_FILE", "")
     if not events_file:
-        events_file = _resolve_relative_path(
-            webhook.get("events_file", "./events.jsonl"),
-            config_path,
-        )
+        configured_events_file = webhook.get("events_file", "")
+        if configured_events_file:
+            events_file = _resolve_relative_path(configured_events_file, config_path)
+        else:
+            events_file = str((Path.cwd() / "events.jsonl").resolve())
 
     trigger_rules_file = os.environ.get("FORGE_TRIGGER_RULES", "")
     if not trigger_rules_file:
-        trigger_rules_file = _resolve_relative_path(
-            trigger.get("rules_file", ""),
-            config_path,
-        )
+        configured_rules_file = trigger.get("rules_file", "")
+        if configured_rules_file:
+            trigger_rules_file = _resolve_relative_path(
+                configured_rules_file,
+                config_path,
+            )
+        else:
+            trigger_rules_file = str(_bundled_asset_path("trigger-rules.json"))
 
     return {
         "secret": secret,

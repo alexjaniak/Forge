@@ -219,10 +219,10 @@ Edit `apps/forge-cli/config.toml`:
 [webhook]
 secret = "your-secret-here"
 port = 8471
-events_file = "apps/forge-cli/events.jsonl"
+events_file = "./events.jsonl"
 
 [trigger]
-rules_file = "apps/forge-cli/trigger-rules.json"
+rules_file = "./trigger-rules.json"
 
 [repo]
 name = "owner/repo"
