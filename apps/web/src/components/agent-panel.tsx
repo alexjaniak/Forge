@@ -16,8 +16,6 @@ interface Agent {
   overdue: boolean;
   prompt: string;
   contexts: string[];
-  agentic: boolean;
-  workspace: boolean;
   repo: string;
   branch: string | null;
   status: AgentStatus;
@@ -248,8 +246,7 @@ interface Template {
   type: string;
   interval: string;
   contexts: string[];
-  agentic: boolean;
-  workspace: boolean;
+  repo: string;
 }
 
 function AddAgentModal({
