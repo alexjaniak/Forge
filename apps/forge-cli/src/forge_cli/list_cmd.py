@@ -1,12 +1,12 @@
 """forge list — unified staged vs active agent view."""
 
-import json
 import os
 import re
 from pathlib import Path
 
 import click
 
+from forge_cli.locks import _parse_lock
 from forge_cli.paths import _get_manage, common_repo_root
 
 
@@ -37,14 +37,8 @@ def _load_issue_locks():
         return issue_locks
 
     for lock_dir in sorted(issues_dir.glob("*.lock")):
-        info_file = lock_dir / "info.json"
-        if not info_file.is_file():
-            continue
-
-        try:
-            with open(info_file) as f:
-                data = json.load(f)
-        except (json.JSONDecodeError, OSError):
+        data = _parse_lock(lock_dir)
+        if data is None or data["stale"]:
             continue
 
         agent_id = data.get("agent")
