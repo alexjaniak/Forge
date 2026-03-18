@@ -1,11 +1,13 @@
 """forge list — unified staged vs active agent view."""
 
+import json
 import os
 import re
+from pathlib import Path
 
 import click
 
-from forge_cli.paths import _get_manage
+from forge_cli.paths import _get_manage, common_repo_root
 
 
 def _role_from_id(agent_id):
@@ -27,6 +29,34 @@ def _format_relative(seconds):
     return f"{secs}s"
 
 
+def _load_issue_locks():
+    """Return a map of agent_id -> issue number for valid local repo issue locks."""
+    issue_locks = {}
+    issues_dir = Path(common_repo_root()) / "locks" / "issues"
+    if not issues_dir.is_dir():
+        return issue_locks
+
+    for lock_dir in sorted(issues_dir.glob("*.lock")):
+        info_file = lock_dir / "info.json"
+        if not info_file.is_file():
+            continue
+
+        try:
+            with open(info_file) as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            continue
+
+        agent_id = data.get("agent")
+        issue_number = lock_dir.name.removesuffix(".lock")
+        if not isinstance(agent_id, str) or not agent_id or not issue_number.isdigit():
+            continue
+
+        issue_locks.setdefault(agent_id, issue_number)
+
+    return issue_locks
+
+
 @click.command("list")
 def list_cmd():
     """Show all agents grouped by state (staged, active, orphan)."""
@@ -45,6 +75,7 @@ def list_cmd():
     # Load active state (cron-state.json)
     state = manage.load_state()
     active_jobs = state.get("jobs", {})
+    issue_locks = _load_issue_locks()
 
     staged_ids = set(staged_jobs.keys())
     active_ids = set(active_jobs.keys())
@@ -125,10 +156,15 @@ def list_cmd():
                 last_str = "last: never"
                 next_str = "next: —"
 
+            issue_suffix = ""
+            if agent_id in issue_locks:
+                issue_suffix = f" {click.style(f'(issue #{issue_locks[agent_id]})', dim=True)}"
+
             click.echo(
                 f"  {agent_id:<20} {role:<10} {interval:<6}"
                 f"{click.style(last_str, fg='cyan'):<30} "
                 f"{click.style(next_str, fg='cyan')}"
+                f"{issue_suffix}"
             )
         click.echo()
     elif not active_jobs:

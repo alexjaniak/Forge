@@ -22,6 +22,21 @@ def repo_root():
         sys.exit(1)
 
 
+def common_repo_root():
+    """Return the shared repository root, resolving git worktrees correctly."""
+    try:
+        git_common_dir = subprocess.check_output(
+            ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        click.echo("Error: not inside a git repository.", err=True)
+        sys.exit(1)
+
+    return os.path.dirname(git_common_dir)
+
+
 def cron_jobs_path():
     return os.path.join(repo_root(), "agent-kernel", "cron", "cron-jobs.json")
 
