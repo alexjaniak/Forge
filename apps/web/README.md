@@ -59,7 +59,7 @@ Filesystem                          API Routes              Components
 agent-kernel/cron/cron-jobs.json  → GET /api/agents       → AgentPanel
 agent-kernel/cron/cron-state.json → GET /api/agents       → AgentPanel
 agent-kernel/logs/{id}.log        → GET /api/logs/stream  → LogsPanel (SSE)
-apps/webhook-monitor/events.jsonl → GET /api/events       → EventsPanel
+apps/forge-cli/events.jsonl       → GET /api/events       → EventsPanel
 gh issue list (via CLI)             → GET /api/issues       → IssuesPanel fallback
 GitHub events JSONL                 → GET /api/issues/stream → IssuesPanel live snapshots
 templates/{type}.json             → POST /api/agents      → (agent creation)
@@ -111,7 +111,7 @@ Server-Sent Events endpoint for live log streaming. Uses `fs.watch()` on log fil
 
 ### `GET /api/events?offset={n}`
 
-Returns up to 50 GitHub events from `apps/webhook-monitor/events.jsonl`, parsed from newline-delimited JSON.
+Returns up to 50 GitHub events from `apps/forge-cli/events.jsonl`, parsed from newline-delimited JSON.
 
 ### `GET /api/issues`
 Returns open GitHub issues via `gh issue list`. Response cached server-side for 5s. Returns `{ issues, labels, repo }`, where `labels` is the hardcoded canonical `status`, `role`, and `type` label set defined in app source so the Issues tab can render filter chips even when a label has zero open matches.
