@@ -193,7 +193,7 @@ Auto-tunnel uses `gh webhook forward` (preferred) or `ngrok` if available. Tunne
 |------|----------|---------|
 | `cron-jobs.json` | `agent-kernel/cron/cron-jobs.json` | Staged agent definitions (jobs, intervals, prompts) |
 | `cron-state.json` | `agent-kernel/cron/cron-state.json` | Active cron state (last run times, managed by the system) |
-| `config.toml` | `apps/webhook-monitor/config.toml` | Webhook config (`repo.name`, `webhook.secret`) |
+| `config.toml` | `apps/forge-cli/config.toml` | Bundled webhook config (`repo.name`, `webhook.secret`) |
 | Templates | `templates/*.json` | Agent templates used by `forge add` |
 
 ### Environment variables
@@ -203,3 +203,29 @@ Auto-tunnel uses `gh webhook forward` (preferred) or `ngrok` if available. Tunne
 | `FORGE_REPO` | GitHub repo name (e.g. `owner/repo`) for webhook forwarding |
 | `FORGE_WEBHOOK_SECRET` | Webhook secret for signature verification |
 | `FORGE_WEBHOOK_PORT` | Webhook server port (default: `8471`) |
+
+### Webhook setup
+
+`forge wh` uses the bundled config under `apps/forge-cli/`.
+
+```bash
+cp apps/forge-cli/config.example.toml apps/forge-cli/config.toml
+```
+
+Edit `apps/forge-cli/config.toml`:
+
+```toml
+[webhook]
+secret = "your-secret-here"
+port = 8471
+events_file = "apps/forge-cli/events.jsonl"
+
+[trigger]
+rules_file = "apps/forge-cli/trigger-rules.json"
+
+[repo]
+name = "owner/repo"
+dir = "/absolute/path/to/Forge"
+```
+
+Start the bundled webhook server with `uv run forge wh`. It will read `apps/forge-cli/config.toml` automatically when run from the repo root, and environment variables still override config values for CI or local overrides.
