@@ -14,7 +14,7 @@ If you prefer another install method for `uv`, see: https://docs.astral.sh/uv/ge
 
 If `uv` is not on `PATH` yet after installation, restart your shell or source your shell profile.
 
-Run Forge commands from the repo root with `uv run forge ...`. Requires Python 3.11+. Dependencies: `click>=8.0`, `forge-webhook>=0.1.0`.
+Run Forge commands from the repo root with `uv run forge ...`. Requires Python 3.11+. Webhook tunneling uses `gh webhook forward` when available and falls back to `ngrok`.
 
 ## Commands
 
@@ -194,6 +194,7 @@ Auto-tunnel uses `gh webhook forward` (preferred) or `ngrok` if available. Tunne
 | `cron-jobs.json` | `agent-kernel/cron/cron-jobs.json` | Staged agent definitions (jobs, intervals, prompts) |
 | `cron-state.json` | `agent-kernel/cron/cron-state.json` | Active cron state (last run times, managed by the system) |
 | `config.toml` | `apps/forge-cli/config.toml` | Bundled webhook config (`repo.name`, `webhook.secret`) |
+| `trigger-rules.json` | `apps/forge-cli/trigger-rules.json` | Webhook trigger rules evaluated after event ingestion |
 | Templates | `templates/*.json` | Agent templates used by `forge add` |
 
 ### Environment variables
@@ -206,7 +207,7 @@ Auto-tunnel uses `gh webhook forward` (preferred) or `ngrok` if available. Tunne
 
 ### Webhook setup
 
-`forge wh` uses the bundled config under `apps/forge-cli/`.
+`forge wh` uses the bundled config and trigger rules under `apps/forge-cli/`.
 
 ```bash
 cp apps/forge-cli/config.example.toml apps/forge-cli/config.toml

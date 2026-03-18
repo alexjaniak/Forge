@@ -115,10 +115,10 @@ else
   info "agent-kernel/.env created"
 fi
 
-if [ -f apps/webhook-monitor/config.toml ]; then
-  info "apps/webhook-monitor/config.toml exists, skipping"
+if [ -f apps/forge-cli/config.toml ]; then
+  info "apps/forge-cli/config.toml exists, skipping"
 else
-  cp apps/webhook-monitor/config.example.toml apps/webhook-monitor/config.toml
+  cp apps/forge-cli/config.example.toml apps/forge-cli/config.toml
   repo_name="${FORGE_REPO:-}"
   secret="${FORGE_WEBHOOK_SECRET:-}"
   if [ -t 0 ]; then
@@ -126,17 +126,17 @@ else
     [ -z "$secret" ] && read -rp "  Enter webhook secret (or Enter to skip): " secret
   fi
   if [ -n "$repo_name" ]; then
-    sed -i.bak "s|^name = \"\".*|name = \"${repo_name}\"|" apps/webhook-monitor/config.toml
-    rm -f apps/webhook-monitor/config.toml.bak
+    sed -i.bak "s|^name = \"\".*|name = \"${repo_name}\"|" apps/forge-cli/config.toml
+    rm -f apps/forge-cli/config.toml.bak
   fi
   if [ -n "$secret" ]; then
-    sed -i.bak "s|^secret = \"\".*|secret = \"${secret}\"|" apps/webhook-monitor/config.toml
-    rm -f apps/webhook-monitor/config.toml.bak
+    sed -i.bak "s|^secret = \"\".*|secret = \"${secret}\"|" apps/forge-cli/config.toml
+    rm -f apps/forge-cli/config.toml.bak
   fi
   # Fill in repo dir
-  sed -i.bak "s|^dir = \"\".*|dir = \"${REPO_ROOT}\"|" apps/webhook-monitor/config.toml
-  rm -f apps/webhook-monitor/config.toml.bak
-  info "apps/webhook-monitor/config.toml created"
+  sed -i.bak "s|^dir = \"\".*|dir = \"${REPO_ROOT}\"|" apps/forge-cli/config.toml
+  rm -f apps/forge-cli/config.toml.bak
+  info "apps/forge-cli/config.toml created"
 fi
 echo
 
@@ -164,7 +164,7 @@ else
 fi
 
 [ -f agent-kernel/.env ] && info "agent-kernel/.env exists" || { err "agent-kernel/.env missing"; errors=1; }
-[ -f apps/webhook-monitor/config.toml ] && info "config.toml exists" || { err "config.toml missing"; errors=1; }
+[ -f apps/forge-cli/config.toml ] && info "config.toml exists" || { err "config.toml missing"; errors=1; }
 
 echo
 if [ "$errors" -ne 0 ]; then
@@ -186,6 +186,6 @@ ${GREEN}${BOLD}Setup complete!${RESET}
 
   Next steps:
     1. Edit agent-kernel/.env with your Claude OAuth token
-    2. Edit apps/webhook-monitor/config.toml with your webhook secret
+    2. Edit apps/forge-cli/config.toml with your webhook secret
     3. Run: uv run forge add worker && uv run forge cron apply
 EOF
