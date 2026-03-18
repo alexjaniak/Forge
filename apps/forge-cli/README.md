@@ -101,6 +101,30 @@ uv run forge logs worker-01 -f
 uv run forge logs -n 200
 ```
 
+### `forge kill`
+
+Terminate a running managed agent process.
+
+```
+forge kill AGENT_ID
+forge kill --all
+```
+
+| Flag | Description |
+|------|-------------|
+| `AGENT_ID` | Terminate one running managed agent by ID |
+| `--all` | Terminate all running managed agents |
+
+```bash
+# Stop one managed agent run
+forge kill worker-01
+
+# Stop all currently running managed agent runs
+forge kill --all
+```
+
+If no matching managed run is active, Forge prints a message instead of failing.
+
 ### `forge clear`
 
 Reset staged config — remove all agents from `cron-jobs.json`.

@@ -32,6 +32,8 @@ Unified command-line interface for managing agents.
 | `forge locks list` | Show all held issue/PR locks across repos |
 | `forge locks clear` | Clear stale locks (`--all` for all, `--all --force` to skip confirm) |
 | `forge wh` | Start webhook monitor with auto-tunnel |
+| `forge kill <id>` | Terminate one running managed agent |
+| `forge kill --all` | Terminate all running managed agents |
 
 Run from the repo workspace: `uv run forge --help`
 

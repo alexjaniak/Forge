@@ -11,6 +11,7 @@ from forge_cli.reset_cmd import reset_cmd
 from forge_cli.run_cmd import run_cmd
 from forge_cli.ui import ui
 from forge_cli.webhook import wh
+from forge_cli.kill_cmd import kill_cmd
 
 
 @click.group()
@@ -30,3 +31,4 @@ main.add_command(run_cmd, name="run")
 main.add_command(list_cmd, name="status")
 main.add_command(ui)
 main.add_command(wh)
+main.add_command(kill_cmd, name="kill")
