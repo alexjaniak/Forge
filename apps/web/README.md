@@ -51,7 +51,7 @@ src/app/
 | **AgentPanel** | `agent-panel.tsx` | Lists agents with status badges (NEW, ACTIVE, MODIFIED, DELETED), role badges, interval/countdown info, and branch context. Supports add, delete, force-run, apply, clear, diff, and reset actions. Auto-refreshes every 5s. |
 | **LogsPanel** | `logs-panel.tsx` | Streams logs via SSE (`/api/logs/stream`) with polling fallback (5s). Tabs for each agent plus an "All" view. Parses log blocks delimited by `=== RUN ===` / `=== END RUN ===` markers. Max 200 blocks displayed. |
 | **EventsPanel** | `events-panel.tsx` | Polls `/api/events` every 3s. Shows GitHub event cards with action badges (color-coded), issue numbers, actors, labels. Max 50 events displayed. |
-| **IssuesPanel** | `issues-panel.tsx` | Connects to `/api/issues/stream` for live issue snapshots with `/api/issues` polling fallback. Shows GitHub issues with label badges (color-coded by status/role/type). Filterable by status and role labels. Audio alert only when an issue newly gains `role:admin`. |
+| **IssuesPanel** | `issues-panel.tsx` | Connects to `/api/issues/stream` for live issue snapshots with `/api/issues` polling fallback. Shows GitHub issues with label badges (color-coded by status/role/type). Live snapshots refresh on relevant GitHub issue webhooks and issue-lock metadata changes. Filterable by status and role labels. Audio alert only when an issue newly gains `role:admin`. |
 
 ### Data Flow
 
@@ -63,7 +63,7 @@ agent-kernel/cron/cron-state.json → GET /api/agents       → AgentPanel
 agent-kernel/logs/{id}.log        → GET /api/logs/stream  → LogsPanel (SSE)
 apps/webhook-monitor/events.jsonl → GET /api/events       → EventsPanel
 gh issue list (via CLI)             → GET /api/issues       → IssuesPanel fallback
-GitHub events JSONL                 → GET /api/issues/stream → IssuesPanel live snapshots
+GitHub events JSONL + issue locks   → GET /api/issues/stream → IssuesPanel live snapshots
 templates/{type}.json             → POST /api/agents      → (agent creation)
 .worktrees/{id}/.agent.lock       → GET /api/agents       → (running detection)
 ```
@@ -128,7 +128,7 @@ Returns open GitHub issues via `gh issue list`. Response cached server-side for 
 
 ### `GET /api/issues/stream`
 
-Server-Sent Events endpoint for live issue snapshots. Sends an initial `{ issues, labels, repo }` snapshot immediately on connect, then emits updated snapshots when the GitHub event feed changes in ways that affect the Issues tab. The frontend falls back to polling `GET /api/issues` if the stream disconnects.
+Server-Sent Events endpoint for live issue snapshots. Sends an initial `{ issues, labels, repo }` snapshot immediately on connect, then emits updated snapshots when the GitHub event feed changes in ways that affect the Issues tab or when `locks/issues/<number>.lock/info.json` changes. The frontend falls back to polling `GET /api/issues` if the stream disconnects.
 
 ## Environment Variables
 
