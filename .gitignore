@@ -12,3 +12,5 @@ __pycache__/
 apps/webhook-monitor/config.toml
 events.jsonl
 apps/web/events.jsonl
+templates/*.json
+!templates/*.example.json
