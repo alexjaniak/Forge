@@ -29,7 +29,7 @@ Add an agent from a template.
 | `AGENT_TYPE` | Template name (e.g. `worker`, `planner`) |
 | `--id ID` | Custom agent ID (default: auto-generate, e.g. `worker-01`) |
 | `--interval INTERVAL` | Override template interval (e.g. `5m`, `1h`) |
-| `--model MODEL` | Override the template model (e.g. `gpt-5.4`) |
+| `--model MODEL` | Override template model (e.g. `gpt-5.4`) |
 | `--list` | List available templates |
 
 ```bash
@@ -39,8 +39,8 @@ uv run forge add worker
 # Add with custom ID and interval
 uv run forge add worker --id worker-05 --interval 10m
 
-# Add with a model override
-uv run forge add worker --model gpt-5.4
+# Add with an explicit model override
+uv run forge add --model gpt-5.4 worker
 
 # List available templates
 uv run forge add --list

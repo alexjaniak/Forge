@@ -13,18 +13,6 @@ info()  { echo "${GREEN}✓${RESET} $*"; }
 warn()  { echo "${YELLOW}⚠${RESET} $*"; }
 err()   { echo "${RED}✗${RESET} $*" >&2; }
 
-detect_repo_name() {
-  local remote
-  remote=$(git remote get-url origin 2>/dev/null || true)
-  case "$remote" in
-    git@github.com:*.git) echo "${remote#git@github.com:}" | sed 's/\.git$//' ;;
-    https://github.com/*.git) echo "${remote#https://github.com/}" | sed 's/\.git$//' ;;
-    https://github.com/*) echo "${remote#https://github.com/}" ;;
-    github.com/*) echo "$remote" ;;
-    *) echo "" ;;
-  esac
-}
-
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$REPO_ROOT"
 
@@ -157,7 +145,6 @@ else
   : > apps/forge-cli/events.jsonl
   info "apps/forge-cli/events.jsonl created"
 fi
-
 template_repo="${FORGE_TEMPLATE_REPO:-$(detect_repo_name)}"
 for example in templates/*.example.json; do
   [ -f "$example" ] || continue
@@ -223,5 +210,5 @@ ${GREEN}${BOLD}Setup complete!${RESET}
   Next steps:
     1. Edit agent-kernel/.env with your Claude OAuth token
     2. Edit apps/forge-cli/config.toml with your webhook secret
-    3. Run: uv run forge add worker && uv run forge cron apply
+    3. Run: uv run forge add worker && uv run forge apply
 EOF

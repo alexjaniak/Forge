@@ -15,24 +15,31 @@ def _templates_dir():
     return os.path.join(repo_root(), "templates")
 
 
+def _template_candidates(template_name):
+    tdir = _templates_dir()
+    return [
+        os.path.join(tdir, f"{template_name}.json"),
+        os.path.join(tdir, f"{template_name}.example.json"),
+    ]
+
+
 def _available_templates():
-    """Return dict of template_name -> file_path for local .json or tracked .example.json files."""
+    """Return dict of template_name -> file_path for resolved templates in templates/."""
     tdir = _templates_dir()
     if not os.path.isdir(tdir):
         return {}
     templates = {}
     for fname in sorted(os.listdir(tdir)):
-        name = None
         if fname.endswith(".example.json"):
             name = fname[:-13]
         elif fname.endswith(".json"):
             name = fname[:-5]
-        if name is None:
+        else:
             continue
-        path = os.path.join(tdir, fname)
-        # Prefer local working copies over tracked examples when both exist.
-        if name not in templates or fname.endswith(".json"):
-            templates[name] = path
+        for candidate in _template_candidates(name):
+            if os.path.isfile(candidate):
+                templates[name] = candidate
+                break
     return templates
 
 
@@ -111,11 +118,9 @@ def add(agent_types, agent_id, interval, model, list_templates, apply_flag):
         job["contexts"] = template.get("contexts", [])
         job["agentic"] = template.get("agentic", False)
         job["workspace"] = template.get("workspace", False)
-        template_model = template.get("model", "")
-        if model:
-            job["model"] = model
-        elif template_model:
-            job["model"] = template_model
+        resolved_model = model if model is not None else template.get("model")
+        if resolved_model:
+            job["model"] = resolved_model
         if "repo" in template:
             job["repo"] = template["repo"]
 

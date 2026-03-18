@@ -92,14 +92,14 @@ Each `info.json` contains `{"agent": "<id>", "pid": <pid>, "claimed_at": "<ISO t
 agent-kernel/    Core runtime — run.sh entry point, cron scheduling
 apps/            Applications (forge-cli, web dashboard)
 contexts/        Reusable context files that define agent behavior and protocols
-templates/       Agent template examples plus local working copies
+templates/       Agent configuration templates (worker.json / worker.example.json, etc.)
 ```
 
 - **[agent-kernel](agent-kernel/README.md)** — one-shot Claude CLI wrapper with context assembly, worktree management, and cron-friendly execution
 - **[apps/forge-cli](apps/forge-cli/)** — `forge` CLI for agent lifecycle and orchestration
 - **[apps/web](apps/web/)** — Next.js web dashboard for monitoring agents and events
 - **[contexts](contexts/)** — modular `.md` files shaping agent identity, roles, constraints, handoff protocol, labels, and workspace rules
-- **[templates](templates/)** — tracked `*.example.json` templates plus local `*.json` working copies for interval, prompt, contexts, model, and flags
+- **[templates](templates/)** — JSON templates defining agent interval, prompt, contexts, and flags
 
 ## Getting started
 
@@ -116,8 +116,6 @@ If `uv` is not available immediately after installation, restart your shell or s
 
 The install script checks prerequisites, syncs the Python workspace with `uv`, installs dependencies, and generates config files.
 
-Tracked template examples live at `templates/*.example.json`. During setup, `./install.sh` generates local `templates/*.json` working copies from those examples and fills in the repo placeholder. Edit the local `templates/*.json` files for your machine; keep the tracked `*.example.json` files generic.
-
 ### Manual setup
 
 If you prefer manual setup:
@@ -127,3 +125,10 @@ If you prefer manual setup:
 4. `cp agent-kernel/.env.example agent-kernel/.env` — Configure credentials
 5. `cp apps/forge-cli/config.example.toml apps/forge-cli/config.toml` — Configure webhooks
 6. `uv run forge --help` — Verify the Forge CLI is available
+
+Typical workflow after setup:
+1. `forge add worker` — Stage a new agent from the template
+2. `forge status` — Review staged changes and applied agents
+3. `forge diff` — Inspect field-level staged vs applied differences
+4. `forge apply` — Activate the staged config
+5. `forge reset` — Discard staged changes and restore the applied config
