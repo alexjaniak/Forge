@@ -340,7 +340,6 @@ export function IssuesPanel({ refreshKey }: { refreshKey?: number }) {
             )
           ),
         ].sort();
-
   const toggleFilter = (
     filterSet: Set<string>,
     setter: React.Dispatch<React.SetStateAction<Set<string>>>,

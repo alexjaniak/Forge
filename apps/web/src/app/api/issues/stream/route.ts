@@ -1,7 +1,11 @@
 import fs from "fs";
 import path from "path";
 import { eventsPath } from "@/lib/paths";
-import { getIssueSnapshot, invalidateIssueSnapshot } from "@/lib/issues";
+import {
+  getEmptyIssueSnapshot,
+  getIssueSnapshot,
+  invalidateIssueSnapshot,
+} from "@/lib/issues";
 
 const KEEPALIVE_MS = 15000;
 const ISSUE_EVENT_PREFIX = "issue.";
@@ -97,7 +101,10 @@ export async function GET(request: Request) {
             error instanceof Error ? error.message : String(error);
           if (closed) return;
           controller.enqueue(
-            encodeSse("snapshot", { issues: [], repo: "", error: message })
+            encodeSse("snapshot", {
+              ...getEmptyIssueSnapshot(),
+              error: message,
+            })
           );
         }
       } while (snapshotQueued);
