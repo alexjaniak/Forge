@@ -78,7 +78,7 @@ Returns all agents with computed status and metadata. Reads staged config from `
 
 - **new** — in staged config but not applied state yet
 - **active** — in both with matching applied interval
-- **modified** — in both, but the staged interval differs from the running interval
+- **modified** — in both, but one or more compared fields differ between staged and applied config (`interval`, `prompt`, `contexts`, `agentic`, `workspace`, `repo`, `runtime`, `model`)
 - **deleted** — in applied state but removed from staged config
 
 Running state is detected via `.agent.lock` PID files in agent worktrees.
@@ -109,7 +109,7 @@ Returns a field-level staged vs applied diff for agent records. Response shape i
 
 ### `POST /api/agents/reset`
 
-Rebuilds staged config from the currently applied state while preserving the top-level `stagger` setting from `cron-jobs.json`.
+Rebuilds staged config from the currently applied state while preserving the top-level `stagger` setting from `cron-jobs.json`. If `cron-state.json` does not exist yet, reset treats the applied state as empty and clears staged-only changes instead of returning an error.
 
 ### `GET /api/logs/[agentId]?offset={n}`
 

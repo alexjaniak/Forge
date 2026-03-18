@@ -35,15 +35,13 @@ interface CronJobsConfig {
 
 export async function POST() {
   try {
+    // Match CLI reset semantics: no applied state means "reset to empty".
     let state: CronState = { jobs: {} };
     try {
       const raw = fs.readFileSync(cronStatePath(), "utf-8");
       state = JSON.parse(raw);
     } catch {
-      return NextResponse.json(
-        { error: "No applied state found" },
-        { status: 400 }
-      );
+      // no applied state file yet
     }
 
     // Read current config to preserve stagger setting
