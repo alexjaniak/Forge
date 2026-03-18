@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import type { CanonicalIssueLabels } from "@/lib/github-labels";
+
+const POLL_INTERVAL = 5000;
 
 interface Issue {
   number: number;
@@ -41,6 +44,43 @@ function labelColor(name: string): string {
   );
 }
 
+function chipBorderColor(name: string): string {
+  if (name.startsWith("status:")) {
+    return STATUS_COLORS[name]?.includes("accent-green")
+      ? "border-accent-green/50"
+      : STATUS_COLORS[name]?.includes("accent-blue")
+        ? "border-accent-blue/50"
+        : STATUS_COLORS[name]?.includes("accent-magenta")
+          ? "border-accent-magenta/50"
+          : STATUS_COLORS[name]?.includes("accent-red")
+            ? "border-accent-red/50"
+            : "border-accent-yellow/50";
+  }
+
+  if (name.startsWith("role:")) {
+    return ROLE_COLORS[name]?.includes("accent-green")
+      ? "border-accent-green/50"
+      : ROLE_COLORS[name]?.includes("accent-magenta")
+        ? "border-accent-magenta/50"
+        : ROLE_COLORS[name]?.includes("accent-yellow")
+          ? "border-accent-yellow/50"
+          : "border-accent-orange/50";
+  }
+
+  if (name === "type:epic") return "border-accent-cyan/50";
+  if (name === "type:fix") return "border-accent-red/50";
+
+  return "border-border";
+}
+
+function filterChipClass(name: string, active: boolean): string {
+  if (!active) {
+    return "text-muted-foreground border border-border";
+  }
+
+  return `${labelColor(name)} border ${chipBorderColor(name)}`;
+}
+
 function playAdminAlert() {
   try {
     const ctx = new AudioContext();
@@ -51,17 +91,14 @@ function playAdminAlert() {
     osc.type = "sine";
     gain.gain.setValueAtTime(0.15, ctx.currentTime);
 
-    // First tone
     osc.frequency.setValueAtTime(880, ctx.currentTime);
-    // Second tone (slightly higher)
     osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.15);
-    // Fade out
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
 
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.3);
   } catch {
-    // Audio not available — silently ignore
+    // Audio not available; ignore.
   }
 }
 
@@ -99,12 +136,12 @@ function IssueCard({ issue, repo }: { issue: Issue; repo: string }) {
         <span className="text-base text-text truncate">{issue.title}</span>
       </div>
       <div className="flex flex-wrap gap-1 mt-1 items-center">
-        {issue.labels.map((l) => (
+        {issue.labels.map((label) => (
           <span
-            key={l.name}
-            className={`text-xs px-1.5 py-0.5 rounded ${labelColor(l.name)}`}
+            key={label.name}
+            className={`text-xs px-1.5 py-0.5 rounded ${labelColor(label.name)}`}
           >
-            {l.name}
+            {label.name}
           </span>
         ))}
         {issue.assignees.length > 0 && (
@@ -119,26 +156,49 @@ function IssueCard({ issue, repo }: { issue: Issue; repo: string }) {
 
 export function IssuesPanel({ refreshKey }: { refreshKey?: number }) {
   const [issues, setIssues] = useState<Issue[]>([]);
+  const [labels, setLabels] = useState<CanonicalIssueLabels>({
+    status: [],
+    role: [],
+    type: [],
+  });
   const [repo, setRepo] = useState("");
   const [error, setError] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [roleFilter, setRoleFilter] = useState<Set<string>>(new Set());
+  const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set());
   const [muted, setMuted] = useState(() => {
-    try { return localStorage.getItem("forge-admin-alert-muted") === "true"; } catch { return false; }
+    try {
+      return localStorage.getItem("forge-admin-alert-muted") === "true";
+    } catch {
+      return false;
+    }
   });
   const prevIssuesRef = useRef<Issue[]>([]);
   const initialLoadRef = useRef(true);
-  const mutedRef = useRef(muted);
+  const mutedRef = useRef<boolean>(muted);
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const fallbackTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fetchIssues = useCallback(async () => {
-    try {
-      const res = await fetch("/api/issues");
-      const data = await res.json();
+  useEffect(() => {
+    mutedRef.current = muted;
+  }, [muted]);
+
+  const applySnapshot = useCallback(
+    (data: {
+      issues?: Issue[];
+      labels?: CanonicalIssueLabels;
+      repo?: string;
+      error?: string;
+    }) => {
       if (data.error) setError(data.error);
       else setError("");
-      const newIssues: Issue[] = data.issues ?? [];
+
+      const newIssues = data.issues ?? [];
       setIssues(newIssues);
-      if (data.repo) setRepo(data.repo);
+      if (data.labels) setLabels(data.labels);
+      if (typeof data.repo === "string") {
+        setRepo(data.repo);
+      }
 
       if (initialLoadRef.current) {
         initialLoadRef.current = false;
@@ -149,7 +209,9 @@ export function IssuesPanel({ refreshKey }: { refreshKey?: number }) {
       if (!mutedRef.current) {
         const prevAdminIds = new Set(
           prevIssuesRef.current
-            .filter((issue) => issue.labels.some((label) => label.name === "role:admin"))
+            .filter((issue) =>
+              issue.labels.some((label) => label.name === "role:admin")
+            )
             .map((issue) => issue.number)
         );
         const hasNewAdminIssue = newIssues.some(
@@ -163,8 +225,29 @@ export function IssuesPanel({ refreshKey }: { refreshKey?: number }) {
       }
 
       prevIssuesRef.current = newIssues;
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Fetch failed");
+    },
+    []
+  );
+
+  const fetchIssues = useCallback(async () => {
+    try {
+      const res = await fetch("/api/issues");
+      const data = await res.json();
+      applySnapshot(data);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Fetch failed");
+    }
+  }, [applySnapshot]);
+
+  const startFallbackPolling = useCallback(() => {
+    if (fallbackTimerRef.current) return;
+    fallbackTimerRef.current = setInterval(fetchIssues, POLL_INTERVAL);
+  }, [fetchIssues]);
+
+  const stopFallbackPolling = useCallback(() => {
+    if (fallbackTimerRef.current) {
+      clearInterval(fallbackTimerRef.current);
+      fallbackTimerRef.current = null;
     }
   }, []);
 
@@ -172,16 +255,37 @@ export function IssuesPanel({ refreshKey }: { refreshKey?: number }) {
     const initialFetchId = window.setTimeout(() => {
       void fetchIssues();
     }, 0);
-    const id = setInterval(fetchIssues, 5000);
+
+    const eventSource = new EventSource("/api/issues/stream");
+    eventSourceRef.current = eventSource;
+
+    const handleSnapshot = (event: MessageEvent<string>) => {
+      try {
+        applySnapshot(JSON.parse(event.data));
+      } catch {
+        setError("Invalid issue stream payload");
+      }
+    };
+
+    eventSource.onmessage = handleSnapshot;
+    eventSource.addEventListener("snapshot", handleSnapshot as EventListener);
+
+    eventSource.onerror = () => {
+      startFallbackPolling();
+    };
+
+    eventSource.onopen = () => {
+      stopFallbackPolling();
+    };
+
     return () => {
       window.clearTimeout(initialFetchId);
-      clearInterval(id);
+      eventSource.removeEventListener("snapshot", handleSnapshot as EventListener);
+      eventSource.close();
+      eventSourceRef.current = null;
+      stopFallbackPolling();
     };
-  }, [fetchIssues]);
-
-  useEffect(() => {
-    mutedRef.current = muted;
-  }, [muted]);
+  }, [applySnapshot, fetchIssues, startFallbackPolling, stopFallbackPolling]);
 
   useEffect(() => {
     if (refreshKey && refreshKey > 0) {
@@ -193,31 +297,56 @@ export function IssuesPanel({ refreshKey }: { refreshKey?: number }) {
   }, [refreshKey, fetchIssues]);
 
   useEffect(() => {
-    try { localStorage.setItem("forge-admin-alert-muted", String(muted)); } catch {}
+    try {
+      localStorage.setItem("forge-admin-alert-muted", String(muted));
+    } catch {}
   }, [muted]);
 
-  // Collect unique status and role labels present in data
-  const statusLabels = [
-    ...new Set(
-      issues.flatMap((i) =>
-        i.labels.filter((l) => l.name.startsWith("status:")).map((l) => l.name)
-      )
-    ),
-  ].sort();
-  const roleLabels = [
-    ...new Set(
-      issues.flatMap((i) =>
-        i.labels.filter((l) => l.name.startsWith("role:")).map((l) => l.name)
-      )
-    ),
-  ].sort();
+  const statusLabels =
+    labels.status.length > 0
+      ? labels.status
+      : [
+          ...new Set(
+            issues.flatMap((issue) =>
+              issue.labels
+                .filter((label) => label.name.startsWith("status:"))
+                .map((label) => label.name)
+            )
+          ),
+        ].sort();
+
+  const roleLabels =
+    labels.role.length > 0
+      ? labels.role
+      : [
+          ...new Set(
+            issues.flatMap((issue) =>
+              issue.labels
+                .filter((label) => label.name.startsWith("role:"))
+                .map((label) => label.name)
+            )
+          ),
+        ].sort();
+
+  const typeLabels =
+    labels.type.length > 0
+      ? labels.type
+      : [
+          ...new Set(
+            issues.flatMap((issue) =>
+              issue.labels
+                .filter((label) => label.name.startsWith("type:"))
+                .map((label) => label.name)
+            )
+          ),
+        ].sort();
 
   const toggleFilter = (
-    set: Set<string>,
+    filterSet: Set<string>,
     setter: React.Dispatch<React.SetStateAction<Set<string>>>,
     value: string
   ) => {
-    const next = new Set(set);
+    const next = new Set(filterSet);
     if (next.has(value)) next.delete(value);
     else next.add(value);
     setter(next);
@@ -225,26 +354,31 @@ export function IssuesPanel({ refreshKey }: { refreshKey?: number }) {
 
   const filtered = issues.filter((issue) => {
     if (statusFilter.size > 0) {
-      const has = issue.labels.some(
-        (l) => l.name.startsWith("status:") && statusFilter.has(l.name)
+      const hasStatus = issue.labels.some(
+        (label) => label.name.startsWith("status:") && statusFilter.has(label.name)
       );
-      if (!has) return false;
+      if (!hasStatus) return false;
     }
     if (roleFilter.size > 0) {
-      const has = issue.labels.some(
-        (l) => l.name.startsWith("role:") && roleFilter.has(l.name)
+      const hasRole = issue.labels.some(
+        (label) => label.name.startsWith("role:") && roleFilter.has(label.name)
       );
-      if (!has) return false;
+      if (!hasRole) return false;
+    }
+    if (typeFilter.size > 0) {
+      const hasType = issue.labels.some(
+        (label) => label.name.startsWith("type:") && typeFilter.has(label.name)
+      );
+      if (!hasType) return false;
     }
     return true;
   });
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Filter bar */}
       <div className="flex items-center gap-2 border-b border-border px-3 py-2 shrink-0 flex-wrap">
         <button
-          onClick={() => setMuted((m) => !m)}
+          onClick={() => setMuted((value) => !value)}
           title={muted ? "Unmute admin alerts" : "Mute admin alerts"}
           className={`px-1.5 py-0.5 rounded transition-colors ${
             muted
@@ -254,42 +388,41 @@ export function IssuesPanel({ refreshKey }: { refreshKey?: number }) {
         >
           <BellIcon muted={muted} />
         </button>
-        {statusLabels.map((s) => (
+        {statusLabels.map((label) => (
           <button
-            key={s}
-            onClick={() => toggleFilter(statusFilter, setStatusFilter, s)}
-            className={`text-xs px-2 py-0.5 rounded-full cursor-pointer ${
-              statusFilter.has(s)
-                ? "bg-accent-blue/20 text-accent-blue border border-accent-blue/50"
-                : "text-muted-foreground border border-border"
-            }`}
+            key={label}
+            onClick={() => toggleFilter(statusFilter, setStatusFilter, label)}
+            className={`text-xs px-2 py-0.5 rounded-full cursor-pointer ${filterChipClass(label, statusFilter.has(label))}`}
           >
-            {s}
+            {label}
           </button>
         ))}
-        {roleLabels.map((r) => (
+        {roleLabels.map((label) => (
           <button
-            key={r}
-            onClick={() => toggleFilter(roleFilter, setRoleFilter, r)}
-            className={`text-xs px-2 py-0.5 rounded-full cursor-pointer ${
-              roleFilter.has(r)
-                ? "bg-accent-blue/20 text-accent-blue border border-accent-blue/50"
-                : "text-muted-foreground border border-border"
-            }`}
+            key={label}
+            onClick={() => toggleFilter(roleFilter, setRoleFilter, label)}
+            className={`text-xs px-2 py-0.5 rounded-full cursor-pointer ${filterChipClass(label, roleFilter.has(label))}`}
           >
-            {r}
+            {label}
+          </button>
+        ))}
+        {typeLabels.map((label) => (
+          <button
+            key={label}
+            onClick={() => toggleFilter(typeFilter, setTypeFilter, label)}
+            className={`text-xs px-2 py-0.5 rounded-full cursor-pointer ${filterChipClass(label, typeFilter.has(label))}`}
+          >
+            {label}
           </button>
         ))}
       </div>
 
-      {/* Error */}
       {error && (
         <div className="text-accent-red text-xs px-3 py-1 shrink-0">
           {error}
         </div>
       )}
 
-      {/* Issue list */}
       <div className="dashboard-scrollbar [--dashboard-scrollbar-surface:var(--background)] flex-1 overflow-y-auto px-3 pb-3">
         {filtered.length === 0 && !error ? (
           <p className="text-muted-foreground text-sm pt-3">No issues found.</p>
