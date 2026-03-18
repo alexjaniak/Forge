@@ -1,6 +1,6 @@
 # Templates
 
-JSON files that define the runtime configuration for each agent role. Each template specifies which contexts to include in the agent's system prompt, along with scheduling and execution settings.
+JSON files that define the runtime configuration for each agent role. Each template specifies which contexts to include in the agent's system prompt, along with scheduling metadata and the target repo.
 
 ## Template format
 

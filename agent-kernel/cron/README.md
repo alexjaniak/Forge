@@ -12,6 +12,8 @@ Declarative cron management for agent-kernel. Python 3, no dependencies.
 ./agent-kernel/cron/manage.py apply
 ```
 
+Each job must declare a `repo`. Managed cron jobs always run with tool access in an isolated git worktree at `<target-repo>/.worktrees/<id>`.
+
 ## cron-jobs.json
 
 Source of truth for desired cron state. Checked into git.
@@ -39,6 +41,8 @@ Source of truth for desired cron state. Checked into git.
 | `repo` | string | required | Target repo (e.g. `"github.com/owner/repo"`). |
 | `contexts` | string[] | `[]` | List of context file paths relative to repo root, each passed as `--context` to `run.sh`. |
 | `enabled` | bool | `true` | Set `false` to remove from crontab without deleting config. |
+
+Managed cron jobs always run with tool access in an isolated worktree named after the job ID under the target repo, so those runtime behaviors are no longer configured per job.
 
 ## Commands
 

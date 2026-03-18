@@ -55,10 +55,15 @@ Select which contexts to include per invocation with `--context <path>` (repeata
 Cron jobs can also specify contexts in `cron-jobs.json`:
 ```json
 {
-  "id": "daily-summary",
-  "interval": "1h",
-  "prompt": "Summarize recent activity",
-  "contexts": ["contexts/IDENTITY.md"]
+  "jobs": [
+    {
+      "id": "daily-summary",
+      "interval": "1h",
+      "prompt": "Summarize recent activity",
+      "repo": "github.com/owner/repo",
+      "contexts": ["contexts/IDENTITY.md"]
+    }
+  ]
 }
 ```
 

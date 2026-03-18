@@ -77,6 +77,11 @@ def validate_model(model):
         sys.exit(1)
 
 
+def require_repo(repo, context):
+    if not isinstance(repo, str) or not repo.strip():
+        print(f"Error: {context} requires a non-empty repo", file=sys.stderr)
+        sys.exit(1)
+    return repo.strip()
 
 def require_repo(repo, context):
     if not isinstance(repo, str) or not repo.strip():
@@ -251,6 +256,7 @@ def cmd_apply(args):
         if job.get("enabled", True):
             job["repo"] = require_repo(job.get("repo"), f"job '{job['id']}'")
             desired[job["id"]] = job
+            job["repo"] = require_repo(job.get("repo"), f"job '{job['id']}'")
 
     # Compute stagger offsets when enabled
     stagger_offsets = {}
