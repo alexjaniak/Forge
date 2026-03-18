@@ -340,7 +340,6 @@ export function IssuesPanel({ refreshKey }: { refreshKey?: number }) {
             )
           ),
         ].sort();
-
   const toggleFilter = (
     filterSet: Set<string>,
     setter: React.Dispatch<React.SetStateAction<Set<string>>>,
@@ -370,6 +369,12 @@ export function IssuesPanel({ refreshKey }: { refreshKey?: number }) {
         (label) => label.name.startsWith("type:") && typeFilter.has(label.name)
       );
       if (!hasType) return false;
+    }
+    if (typeFilter.size > 0) {
+      const has = issue.labels.some(
+        (l) => l.name.startsWith("type:") && typeFilter.has(l.name)
+      );
+      if (!has) return false;
     }
     return true;
   });
@@ -413,6 +418,15 @@ export function IssuesPanel({ refreshKey }: { refreshKey?: number }) {
             className={`text-xs px-2 py-0.5 rounded-full cursor-pointer ${filterChipClass(label, typeFilter.has(label))}`}
           >
             {label}
+          </button>
+        ))}
+        {labels.type.map((t) => (
+          <button
+            key={t}
+            onClick={() => toggleFilter(typeFilter, setTypeFilter, t)}
+            className={`text-xs px-2 py-0.5 rounded-full cursor-pointer ${filterChipClass(t, typeFilter.has(t))}`}
+          >
+            {t}
           </button>
         ))}
       </div>
