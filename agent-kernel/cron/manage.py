@@ -94,7 +94,7 @@ def build_cron_command(job_id, prompt, agentic, contexts=None, workspace=False, 
         cmd += f" --model '{model}'"
     for ctx in (contexts or []):
         cmd += f" --context {ctx}"
-    cmd += f' "{prompt}" >> {LOGS_DIR}/{job_id}.log 2>&1'
+    cmd += f' "{prompt}"'
     return cmd
 
 
