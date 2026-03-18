@@ -35,6 +35,20 @@ def _get_field(job, field):
     return job.get(field)
 
 
+def get_modified_fields(staged_job, applied_job):
+    """Return staged-vs-applied field changes for a single job."""
+    changes = []
+    for field in DIFF_FIELDS:
+        staged_val = _get_field(staged_job, field)
+        applied_val = _get_field(applied_job, field)
+        if (
+            normalize_optional_cron_field(field, staged_val)
+            != normalize_optional_cron_field(field, applied_val)
+        ):
+            changes.append((field, applied_val, staged_val))
+    return changes
+
+
 @click.command("diff")
 def diff_cmd():
     """Show differences between staged config and applied state."""
@@ -60,15 +74,7 @@ def diff_cmd():
     # Find modified agents among common ones
     modified = {}
     for agent_id in common_ids:
-        changes = []
-        for field in DIFF_FIELDS:
-            staged_val = _get_field(staged_jobs[agent_id], field)
-            applied_val = _get_field(applied_jobs[agent_id], field)
-            if (
-                normalize_optional_cron_field(field, staged_val)
-                != normalize_optional_cron_field(field, applied_val)
-            ):
-                changes.append((field, applied_val, staged_val))
+        changes = get_modified_fields(staged_jobs[agent_id], applied_jobs[agent_id])
         if changes:
             modified[agent_id] = changes
 
