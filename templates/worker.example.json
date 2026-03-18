@@ -2,7 +2,8 @@
   "interval": "2m",
   "prompt": "Find one issue labeled status:ready-for-work and role:worker. Read it and all its comments. Implement the task, open a PR, and post a handoff comment on the issue.",
   "contexts": ["contexts/IDENTITY.md", "contexts/WORKER.md", "contexts/ASSIGNED_ISSUE.md", "contexts/CONSTRAINTS.md", "contexts/LABELS.md", "contexts/HANDOFF.md", "contexts/WORKSPACE.md"],
+  "model": "gpt-5.4",
   "agentic": true,
   "workspace": true,
-  "repo": "github.com/alexjaniak/Forge"
+  "repo": "github.com/owner/repo"
 }

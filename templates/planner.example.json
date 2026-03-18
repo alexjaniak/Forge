@@ -2,7 +2,8 @@
   "interval": "2m",
   "prompt": "Review the current state of GitHub issues and PRs. Process any new worker handoff comments. Create new issues or adjust existing ones to progress toward the project goals. Spawn subplanner issues if scope is too large.",
   "contexts": ["contexts/IDENTITY.md", "contexts/PLANNER.md", "contexts/ASSIGNED_ISSUE.md", "contexts/REVIEWER.md", "contexts/CONSTRAINTS.md", "contexts/LABELS.md", "contexts/HANDOFF.md", "contexts/WORKSPACE.md"],
+  "model": "gpt-5.4",
   "agentic": true,
   "workspace": true,
-  "repo": "github.com/alexjaniak/Forge"
+  "repo": "github.com/owner/repo"
 }

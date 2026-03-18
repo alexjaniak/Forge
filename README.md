@@ -19,7 +19,7 @@ Unified command-line interface for managing agents.
 
 | Command | Description |
 |---------|-------------|
-| `forge add <role>` | Add an agent from a template (worker, planner, super) |
+| `forge add <role>` | Add an agent from tracked template defaults (worker, planner, super) |
 | `forge remove <id>` | Remove an agent |
 | `forge apply` | Sync staged agent config to live crontab |
 | `forge run <id>` | Run an agent once immediately |
@@ -90,14 +90,14 @@ Each `info.json` contains `{"agent": "<id>", "pid": <pid>, "claimed_at": "<ISO t
 agent-kernel/    Core runtime — run.sh entry point, cron scheduling
 apps/            Applications (forge-cli, web dashboard)
 contexts/        Reusable context files that define agent behavior and protocols
-templates/       Agent configuration templates (worker.json, planner.json, super.json)
+templates/       Agent template examples plus local working copies
 ```
 
 - **[agent-kernel](agent-kernel/README.md)** — one-shot Claude CLI wrapper with context assembly, worktree management, and cron-friendly execution
 - **[apps/forge-cli](apps/forge-cli/)** — `forge` CLI for agent lifecycle and orchestration
 - **[apps/web](apps/web/)** — Next.js web dashboard for monitoring agents and events
 - **[contexts](contexts/)** — modular `.md` files shaping agent identity, roles, constraints, handoff protocol, labels, and workspace rules
-- **[templates](templates/)** — JSON templates defining agent interval, prompt, contexts, and flags
+- **[templates](templates/)** — tracked `*.example.json` templates plus local `*.json` working copies for interval, prompt, contexts, model, and flags
 
 ## Getting started
 
@@ -113,6 +113,8 @@ If you prefer another install method, see the official uv installation guide: ht
 If `uv` is not available immediately after installation, restart your shell or source your shell profile before running `./install.sh`.
 
 The install script checks prerequisites, syncs the Python workspace with `uv`, installs dependencies, and generates config files.
+
+Tracked template examples live at `templates/*.example.json`. During setup, `./install.sh` generates local `templates/*.json` working copies from those examples and fills in the repo placeholder. Edit the local `templates/*.json` files for your machine; keep the tracked `*.example.json` files generic.
 
 ### Manual setup
 

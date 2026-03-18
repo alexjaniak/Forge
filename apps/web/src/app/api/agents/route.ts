@@ -19,6 +19,7 @@ interface CronJob {
   agentic: boolean;
   workspace: boolean;
   enabled?: boolean;
+  model?: string;
   repo?: string;
 }
 
@@ -203,8 +204,11 @@ function availableTemplateTypes(): Set<string> {
     return new Set(
       fs
         .readdirSync(templatesDir)
-        .filter((f) => f.endsWith(".json"))
-        .map((f) => f.replace(/\.json$/, ""))
+        .flatMap((f) => {
+          if (f.endsWith(".example.json")) return [f.replace(/\.example\.json$/, "")];
+          if (f.endsWith(".json")) return [f.replace(/\.json$/, "")];
+          return [];
+        })
     );
   } catch {
     return new Set();
@@ -286,6 +290,7 @@ export async function POST(request: NextRequest) {
       contexts: template.contexts ?? [],
       agentic: template.agentic ?? true,
       workspace: template.workspace ?? true,
+      model: body.model ?? template.model ?? "",
       repo: template.repo ?? "",
     };
 

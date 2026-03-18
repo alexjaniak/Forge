@@ -22,13 +22,14 @@ Run Forge commands from the repo root with `uv run forge ...`. Requires Python 3
 
 Add an agent from a template.
 
-`uv run forge add [AGENT_TYPE] [--id ID] [--interval INTERVAL] [--list]`
+`uv run forge add [AGENT_TYPE] [--id ID] [--interval INTERVAL] [--model MODEL] [--list]`
 
 | Flag | Description |
 |------|-------------|
 | `AGENT_TYPE` | Template name (e.g. `worker`, `planner`) |
 | `--id ID` | Custom agent ID (default: auto-generate, e.g. `worker-01`) |
 | `--interval INTERVAL` | Override template interval (e.g. `5m`, `1h`) |
+| `--model MODEL` | Override the template model (e.g. `gpt-5.4`) |
 | `--list` | List available templates |
 
 ```bash
@@ -38,11 +39,16 @@ uv run forge add worker
 # Add with custom ID and interval
 uv run forge add worker --id worker-05 --interval 10m
 
+# Add with a model override
+uv run forge add worker --model gpt-5.4
+
 # List available templates
 uv run forge add --list
 ```
 
-The agent is staged in `cron-jobs.json`. Run `uv run forge cron apply` to activate.
+Tracked templates live at `templates/*.example.json`; local `templates/*.json` files are generated working copies and are gitignored. `forge add` prefers the local working copy when it exists and falls back to the tracked example otherwise.
+
+The agent is staged in `cron-jobs.json`. Run `uv run forge apply` to activate.
 
 ### `forge remove`
 
@@ -54,7 +60,7 @@ Remove an agent by ID.
 uv run forge remove worker-03
 ```
 
-Removes the agent from `cron-jobs.json`. Run `uv run forge cron apply` to deactivate.
+Removes the agent from `cron-jobs.json`. Run `uv run forge apply` to deactivate.
 
 ### `forge list` / `forge status`
 
@@ -62,7 +68,7 @@ Show all agents grouped by state: staged, active, and unstaged (active but not i
 
 `uv run forge list`
 
-Displays each agent's ID, role, interval, last run time, and next run countdown. Highlights pending changes (new, removed, interval changed) that require `uv run forge cron apply`.
+Displays each agent's ID, role, interval, last run time, and next run countdown. Highlights pending changes (new, removed, interval changed) that require `uv run forge apply`.
 
 ### `forge logs`
 
@@ -101,7 +107,7 @@ Reset staged config — remove all agents from `cron-jobs.json`.
 uv run forge clear -y
 ```
 
-Run `uv run forge cron apply` afterwards to deactivate the cleared agents.
+Run `uv run forge apply` afterwards to deactivate the cleared agents.
 
 ### `forge cron`
 
@@ -191,10 +197,10 @@ Auto-tunnel uses `gh webhook forward` (preferred) or `ngrok` if available. Tunne
 
 | File | Location | Purpose |
 |------|----------|---------|
-| `cron-jobs.json` | `agent-kernel/cron/cron-jobs.json` | Staged agent definitions (jobs, intervals, prompts) |
+| `cron-jobs.json` | `agent-kernel/cron/cron-jobs.json` | Staged agent definitions (jobs, intervals, prompts, model overrides) |
 | `cron-state.json` | `agent-kernel/cron/cron-state.json` | Active cron state (last run times, managed by the system) |
 | `config.toml` | `apps/webhook-monitor/config.toml` | Webhook config (`repo.name`, `webhook.secret`) |
-| Templates | `templates/*.json` | Agent templates used by `forge add` |
+| Templates | `templates/*.example.json` | Tracked agent template examples used to generate local working copies |
 
 ### Environment variables
 

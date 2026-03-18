@@ -39,7 +39,11 @@ export function logsDir(): string {
 }
 
 export function templatePath(type: string): string {
-  return path.join(getForgeRoot(), `templates/${type}.json`);
+  const localPath = path.join(getForgeRoot(), `templates/${type}.json`);
+  if (fs.existsSync(localPath)) {
+    return localPath;
+  }
+  return path.join(getForgeRoot(), `templates/${type}.example.json`);
 }
 
 export function eventsPath(): string {
