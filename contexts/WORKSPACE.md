@@ -4,7 +4,6 @@ You are running in your own isolated git worktree. Other agents have their own w
 
 ## Branching
 
-- Work inside your assigned worktree. Do NOT create additional git worktrees — use `git checkout -b` to create branches within your existing worktree.
 - Create a new branch from the target branch specified in your issue before starting work.
 - Branch naming: `<agent-id>/<issue-number>-<short-slug>` (e.g. `worker-01/42-fix-auth`).
 - Pull the latest target branch before branching off it.

@@ -10,7 +10,6 @@ import {
   templatePath,
   worktreePath,
 } from "@/lib/paths";
-import { diffAgentConfig } from "@/lib/agent-config-diff";
 
 interface CronJob {
   id: string;
@@ -21,8 +20,6 @@ interface CronJob {
   workspace: boolean;
   enabled?: boolean;
   repo?: string;
-  runtime?: string;
-  model?: string;
 }
 
 interface CronState {
@@ -34,12 +31,6 @@ interface CronState {
       stagger_offset?: number;
       installed_at?: string;
       contexts?: string[];
-      prompt?: string;
-      agentic?: boolean;
-      workspace?: boolean;
-      repo?: string;
-      runtime?: string;
-      model?: string;
     }
   >;
 }
@@ -97,7 +88,7 @@ function inferRole(id: string): string {
 function buildAgentFromJob(
   job: CronJob,
   jobState: CronState["jobs"][string] | undefined,
-  status: "new" | "active" | "modified" | "deleted",
+  status: "staged" | "active" | "modified" | "orphan",
   stagedInterval?: string
 ) {
   const intervalSeconds = parseIntervalSeconds(job.interval);
@@ -173,20 +164,15 @@ export async function GET() {
     const inState = activeIds.has(job.id);
 
     if (!hasState || !inState) {
-      return buildAgentFromJob(job, undefined, "new");
+      return buildAgentFromJob(job, undefined, "staged");
     }
 
-    const changes = diffAgentConfig(job, jobState ?? {});
-    if (Object.keys(changes).length > 0) {
-      const activeInterval = jobState?.interval;
-
+    const activeInterval = jobState?.interval;
+    if (activeInterval && activeInterval !== job.interval) {
       // interval field shows the active (running) interval
       // stagedInterval shows what it will change to on next apply
-      const modifiedJob = activeInterval ? { ...job, interval: activeInterval } : job;
-      const stagedInterval =
-        changes.interval && typeof job.interval === "string" ? job.interval : undefined;
-
-      return buildAgentFromJob(modifiedJob, jobState, "modified", stagedInterval);
+      const modifiedJob = { ...job, interval: activeInterval };
+      return buildAgentFromJob(modifiedJob, jobState, "modified", job.interval);
     }
 
     return buildAgentFromJob(job, jobState, "active");
@@ -204,7 +190,7 @@ export async function GET() {
         agentic: false,
         workspace: false,
       };
-      agents.push(buildAgentFromJob(orphanJob, jobState, "deleted"));
+      agents.push(buildAgentFromJob(orphanJob, jobState, "orphan"));
     }
   }
 
