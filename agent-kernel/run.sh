@@ -148,6 +148,27 @@ RUN_START_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 RUN_START_EPOCH="$(date +%s)"
 TMPLOG="$(mktemp -t forge-run)"
 
+append_serialized_log_block() {
+  local logfile="$1"
+  local blockfile="$2"
+
+  python3 - "$logfile" "$blockfile" <<'PY'
+import fcntl
+import shutil
+import sys
+from pathlib import Path
+
+logfile = Path(sys.argv[1])
+blockfile = Path(sys.argv[2])
+lockfile = Path(f"{logfile}.lock")
+
+with lockfile.open("a") as lockfh:
+    fcntl.flock(lockfh.fileno(), fcntl.LOCK_EX)
+    with logfile.open("ab") as outfh, blockfile.open("rb") as infh:
+        shutil.copyfileobj(infh, outfh)
+PY
+}
+
 # Redirect all stdout/stderr to the temp file
 exec > "$TMPLOG" 2>&1
 
@@ -158,13 +179,22 @@ cleanup() {
   local duration=$(( end_epoch - RUN_START_EPOCH ))
   local log_target="${WORKSPACE_ID:-${LOG_ID:-unknown}}"
   local logfile="$LOGS_DIR/${log_target}.log"
+  local blocklog
+  blocklog="$(mktemp -t forge-run-block)"
 
   {
     echo "=== RUN ${RUN_START_TS} duration=${duration}s exit=${rc} ==="
     cat "$TMPLOG"
-  } >> "$logfile"
+  } > "$blocklog"
+
+  if [[ -z "$WORKSPACE_ID" ]] && [[ -n "$LOG_ID" ]]; then
+    append_serialized_log_block "$logfile" "$blocklog"
+  else
+    cat "$blocklog" >> "$logfile"
+  fi
 
   rm -f "$TMPLOG"
+  rm -f "$blocklog"
   rm -f "${LOCKFILE:-}"
   if [[ -n "${FORGE_LOCKED_ISSUE:-}" ]]; then
     lock_release issue "$FORGE_LOCKED_ISSUE"
