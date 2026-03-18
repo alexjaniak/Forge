@@ -19,15 +19,26 @@ export function cronStatePath(): string {
   return path.join(getForgeRoot(), "agent-kernel/cron/cron-state.json");
 }
 
-export function worktreePath(agentId: string, repo?: string): string {
-  if (repo) {
-    return path.join(getForgeRoot(), `.repos/${repo}/.worktrees/${agentId}`);
+export function repoRootPath(repo?: string): string {
+  if (!repo) {
+    return getForgeRoot();
   }
-  return path.join(getForgeRoot(), `.worktrees/${agentId}`);
+  if (path.isAbsolute(repo)) {
+    return repo;
+  }
+  return path.join(getForgeRoot(), `.repos/${repo}`);
+}
+
+export function worktreePath(agentId: string, repo?: string): string {
+  return path.join(repoRootPath(repo), `.worktrees/${agentId}`);
 }
 
 export function lockFilePath(agentId: string, repo?: string): string {
   return path.join(worktreePath(agentId, repo), ".agent.lock");
+}
+
+export function issueLocksPath(repo?: string): string {
+  return path.join(repoRootPath(repo), "locks/issues");
 }
 
 export function agentLogPath(agentId: string): string {
