@@ -15,6 +15,14 @@ export function invalidateIssueSnapshot(): void {
   cache = null;
 }
 
+export function getEmptyIssueSnapshot(): IssueSnapshot {
+  return {
+    issues: [],
+    labels: readCanonicalIssueLabels(),
+    repo: "",
+  };
+}
+
 export async function getIssueSnapshot(options?: {
   forceRefresh?: boolean;
 }): Promise<IssueSnapshot> {
