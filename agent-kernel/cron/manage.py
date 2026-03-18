@@ -260,9 +260,7 @@ def _list_workspace_ids(repo=""):
 def _bulk_workspace_refs():
     job_refs = list(_configured_workspace_jobs())
     seen = set(job_refs)
-    repos = {repo for _, repo in job_refs}
-    repos.add("")
-    for repo in sorted(repos):
+    for repo in _configured_workspace_repos():
         for job_id in _list_workspace_ids(repo):
             ref = (job_id, repo)
             if ref in seen:
@@ -272,13 +270,32 @@ def _bulk_workspace_refs():
     return job_refs
 
 
+def _load_jobs_config():
+    if not os.path.exists(JOBS_FILE):
+        return {"jobs": []}
+    with open(JOBS_FILE) as f:
+        return json.load(f)
+
+
 def _configured_workspace_jobs():
-    state = load_state()
     jobs = []
-    for job_id, info in state.get("jobs", {}).items():
-        if info.get("workspace"):
-            jobs.append((job_id, info.get("repo", "")))
+    for job in _load_jobs_config().get("jobs", []):
+        if job.get("workspace"):
+            jobs.append((job["id"], job.get("repo", "")))
     return jobs
+
+
+def _configured_workspace_repos():
+    repos = {""}
+    repos.update(repo for _, repo in _configured_workspace_jobs())
+    return sorted(repos)
+
+
+def _target_workspace_refs(agent_id):
+    configured_refs = [ref for ref in _configured_workspace_jobs() if ref[0] == agent_id]
+    if configured_refs:
+        return configured_refs
+    return [(agent_id, repo) for repo in _configured_workspace_repos()]
 
 
 def _read_lock_pid(lock_path):
@@ -395,8 +412,7 @@ def _matches_managed_run(job_id, pid, command, repo=""):
 
 def find_managed_runs(agent_id=None):
     if agent_id:
-        configured_jobs = dict(_configured_workspace_jobs())
-        job_refs = [(agent_id, configured_jobs.get(agent_id, ""))]
+        job_refs = _target_workspace_refs(agent_id)
     else:
         job_refs = _bulk_workspace_refs()
 

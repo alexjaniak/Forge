@@ -3,7 +3,7 @@ import io
 import pathlib
 import unittest
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import mock_open, patch
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -15,6 +15,34 @@ spec.loader.exec_module(manage)
 
 
 class ManageKillTests(unittest.TestCase):
+    def test_configured_workspace_jobs_use_cron_jobs_file_not_persisted_state(self):
+        cron_jobs = {
+            "jobs": [
+                {"id": "worker-02", "workspace": True, "repo": "github.com/alexjaniak/Forge"},
+                {"id": "worker-03", "workspace": True, "repo": "repos/demo"},
+                {"id": "worker-04", "workspace": False, "repo": "github.com/acme/skip"},
+            ]
+        }
+        state = {
+            "jobs": {
+                "worker-02": {"repo": "github.com/acme/old"},
+                "worker-03": {"repo": "repos/old"},
+            }
+        }
+
+        with patch.object(manage.os.path, "exists", return_value=True), patch(
+            "builtins.open", mock_open(read_data=manage.json.dumps(cron_jobs))
+        ), patch.object(manage, "load_state", return_value=state):
+            jobs = manage._configured_workspace_jobs()
+
+        self.assertEqual(
+            jobs,
+            [
+                ("worker-02", "github.com/alexjaniak/Forge"),
+                ("worker-03", "repos/demo"),
+            ],
+        )
+
     def test_workspace_lock_path_uses_target_repo_root(self):
         with patch.object(manage, "REPO_DIR", "/tmp/forge"):
             lock_path = manage._workspace_lock_path(
@@ -108,10 +136,17 @@ class ManageKillTests(unittest.TestCase):
         )
 
     def test_find_managed_runs_uses_configured_repo_root_for_targeted_kill(self):
+        cron_jobs = {
+            "jobs": [
+                {"id": "worker-02", "workspace": True, "repo": "github.com/alexjaniak/Forge"}
+            ]
+        }
+        state = {"jobs": {"worker-02": {"repo": "github.com/acme/old"}}}
+
         with patch.object(manage, "REPO_DIR", "/tmp/forge"), patch.object(
-            manage,
-            "_configured_workspace_jobs",
-            return_value=[("worker-02", "github.com/alexjaniak/Forge")],
+            manage, "load_state", return_value=state
+        ), patch.object(manage.os.path, "exists", return_value=True), patch(
+            "builtins.open", mock_open(read_data=manage.json.dumps(cron_jobs))
         ), patch.object(
             manage,
             "_read_lock_pid",
@@ -137,10 +172,17 @@ class ManageKillTests(unittest.TestCase):
         )
 
     def test_find_managed_runs_uses_relative_configured_repo_root_for_targeted_kill(self):
+        cron_jobs = {
+            "jobs": [
+                {"id": "worker-02", "workspace": True, "repo": "repos/demo"}
+            ]
+        }
+        state = {"jobs": {"worker-02": {"repo": "repos/old"}}}
+
         with patch.object(manage, "REPO_DIR", "/tmp/forge"), patch.object(
-            manage,
-            "_configured_workspace_jobs",
-            return_value=[("worker-02", "repos/demo")],
+            manage, "load_state", return_value=state
+        ), patch.object(manage.os.path, "exists", return_value=True), patch(
+            "builtins.open", mock_open(read_data=manage.json.dumps(cron_jobs))
         ), patch.object(
             manage,
             "_read_lock_pid",
@@ -166,14 +208,25 @@ class ManageKillTests(unittest.TestCase):
         )
 
     def test_find_managed_runs_scans_configured_repo_roots_for_bulk_kill(self):
+        cron_jobs = {
+            "jobs": [
+                {"id": "worker-02", "workspace": True, "repo": "github.com/alexjaniak/Forge"},
+                {"id": "worker-03", "workspace": True, "repo": "/tmp/other-repo"},
+                {"id": "worker-04", "workspace": True, "repo": "repos/demo"},
+            ]
+        }
+        state = {
+            "jobs": {
+                "worker-02": {"repo": "github.com/acme/old"},
+                "worker-03": {"repo": "/tmp/elsewhere"},
+                "worker-04": {},
+            }
+        }
+
         with patch.object(manage, "REPO_DIR", "/tmp/forge"), patch.object(
-            manage,
-            "_configured_workspace_jobs",
-            return_value=[
-                ("worker-02", "github.com/alexjaniak/Forge"),
-                ("worker-03", "/tmp/other-repo"),
-                ("worker-04", "repos/demo"),
-            ],
+            manage, "load_state", return_value=state
+        ), patch.object(manage.os.path, "exists", return_value=True), patch(
+            "builtins.open", mock_open(read_data=manage.json.dumps(cron_jobs))
         ), patch.object(
             manage,
             "_read_lock_pid",
@@ -215,10 +268,16 @@ class ManageKillTests(unittest.TestCase):
         )
 
     def test_find_managed_runs_uses_union_of_configured_and_discovered_workspaces(self):
+        cron_jobs = {
+            "jobs": [
+                {"id": "worker-02", "workspace": True, "repo": "github.com/alexjaniak/Forge"}
+            ]
+        }
+
         with patch.object(manage, "REPO_DIR", "/tmp/forge"), patch.object(
-            manage,
-            "_configured_workspace_jobs",
-            return_value=[("worker-02", "github.com/alexjaniak/Forge")],
+            manage.os.path, "exists", return_value=True
+        ), patch(
+            "builtins.open", mock_open(read_data=manage.json.dumps(cron_jobs))
         ), patch.object(
             manage,
             "_list_workspace_ids",
@@ -282,10 +341,16 @@ class ManageKillTests(unittest.TestCase):
         self.assertEqual(runs, [])
 
     def test_find_managed_runs_rejects_repo_mismatch_for_same_workspace_id(self):
+        cron_jobs = {
+            "jobs": [
+                {"id": "worker-02", "workspace": True, "repo": "github.com/acme/one"}
+            ]
+        }
+
         with patch.object(manage, "REPO_DIR", "/tmp/forge"), patch.object(
-            manage,
-            "_configured_workspace_jobs",
-            return_value=[("worker-02", "github.com/acme/one")],
+            manage.os.path, "exists", return_value=True
+        ), patch(
+            "builtins.open", mock_open(read_data=manage.json.dumps(cron_jobs))
         ), patch.object(
             manage,
             "_read_lock_pid",
@@ -298,6 +363,44 @@ class ManageKillTests(unittest.TestCase):
             runs = manage.find_managed_runs()
 
         self.assertEqual(runs, [])
+
+    def test_find_managed_runs_targeted_kill_scans_all_configured_repos_without_state_entry(self):
+        cron_jobs = {
+            "jobs": [
+                {"id": "worker-03", "workspace": True, "repo": "github.com/alexjaniak/Forge"},
+                {"id": "worker-04", "workspace": True, "repo": "repos/demo"},
+            ]
+        }
+
+        with patch.object(manage, "REPO_DIR", "/tmp/forge"), patch.object(
+            manage, "load_state", return_value={"jobs": {}}
+        ), patch.object(manage.os.path, "exists", return_value=True), patch(
+            "builtins.open", mock_open(read_data=manage.json.dumps(cron_jobs))
+        ), patch.object(
+            manage,
+            "_read_lock_pid",
+            side_effect=lambda path: {
+                "/tmp/forge/.repos/github.com/alexjaniak/Forge/.worktrees/worker-02/.agent.lock": None,
+                "/tmp/forge/repos/demo/.worktrees/worker-02/.agent.lock": 101,
+                "/tmp/forge/.worktrees/worker-02/.agent.lock": None,
+            }.get(path),
+        ), patch.object(
+            manage,
+            "_read_process_command",
+            return_value="/bin/bash /tmp/forge/agent-kernel/run.sh --workspace worker-02 --repo repos/demo 'prompt'",
+        ):
+            runs = manage.find_managed_runs(agent_id="worker-02")
+
+        self.assertEqual(
+            runs,
+            [
+                {
+                    "agent_id": "worker-02",
+                    "pid": 101,
+                    "command": "/bin/bash /tmp/forge/agent-kernel/run.sh --workspace worker-02 --repo repos/demo 'prompt'",
+                }
+            ],
+        )
 
     def test_kill_managed_runs_returns_killed_runs(self):
         runs = [
