@@ -18,9 +18,9 @@ class ManageKillTests(unittest.TestCase):
     def test_configured_workspace_jobs_use_cron_jobs_file_not_persisted_state(self):
         cron_jobs = {
             "jobs": [
-                {"id": "worker-02", "repo": "github.com/alexjaniak/Forge"},
-                {"id": "worker-03", "repo": "repos/demo"},
-                {"id": "worker-04", "repo": "github.com/acme/skip", "enabled": False},
+                {"id": "worker-02", "workspace": True, "repo": "github.com/alexjaniak/Forge"},
+                {"id": "worker-03", "workspace": True, "repo": "repos/demo"},
+                {"id": "worker-04", "workspace": False, "repo": "github.com/acme/skip"},
             ]
         }
 
@@ -134,7 +134,7 @@ class ManageKillTests(unittest.TestCase):
     def test_find_managed_runs_uses_configured_repo_root_for_targeted_kill(self):
         cron_jobs = {
             "jobs": [
-                {"id": "worker-02", "repo": "github.com/alexjaniak/Forge"}
+                {"id": "worker-02", "workspace": True, "repo": "github.com/alexjaniak/Forge"}
             ]
         }
 
@@ -169,7 +169,7 @@ class ManageKillTests(unittest.TestCase):
     def test_find_managed_runs_uses_relative_configured_repo_root_for_targeted_kill(self):
         cron_jobs = {
             "jobs": [
-                {"id": "worker-02", "repo": "repos/demo"}
+                {"id": "worker-02", "workspace": True, "repo": "repos/demo"}
             ]
         }
 
@@ -204,9 +204,9 @@ class ManageKillTests(unittest.TestCase):
     def test_find_managed_runs_scans_configured_repo_roots_for_bulk_kill(self):
         cron_jobs = {
             "jobs": [
-                {"id": "worker-02", "repo": "github.com/alexjaniak/Forge"},
-                {"id": "worker-03", "repo": "/tmp/other-repo"},
-                {"id": "worker-04", "repo": "repos/demo"},
+                {"id": "worker-02", "workspace": True, "repo": "github.com/alexjaniak/Forge"},
+                {"id": "worker-03", "workspace": True, "repo": "/tmp/other-repo"},
+                {"id": "worker-04", "workspace": True, "repo": "repos/demo"},
             ]
         }
 
@@ -257,7 +257,7 @@ class ManageKillTests(unittest.TestCase):
     def test_find_managed_runs_uses_union_of_configured_and_discovered_workspaces(self):
         cron_jobs = {
             "jobs": [
-                {"id": "worker-02", "repo": "github.com/alexjaniak/Forge"}
+                {"id": "worker-02", "workspace": True, "repo": "github.com/alexjaniak/Forge"}
             ]
         }
 
@@ -330,7 +330,7 @@ class ManageKillTests(unittest.TestCase):
     def test_find_managed_runs_rejects_repo_mismatch_for_same_workspace_id(self):
         cron_jobs = {
             "jobs": [
-                {"id": "worker-02", "repo": "github.com/acme/one"}
+                {"id": "worker-02", "workspace": True, "repo": "github.com/acme/one"}
             ]
         }
 
@@ -354,8 +354,8 @@ class ManageKillTests(unittest.TestCase):
     def test_find_managed_runs_targeted_kill_scans_all_configured_repos_without_state_entry(self):
         cron_jobs = {
             "jobs": [
-                {"id": "worker-03", "repo": "github.com/alexjaniak/Forge"},
-                {"id": "worker-04", "repo": "repos/demo"},
+                {"id": "worker-03", "workspace": True, "repo": "github.com/alexjaniak/Forge"},
+                {"id": "worker-04", "workspace": True, "repo": "repos/demo"},
             ]
         }
 

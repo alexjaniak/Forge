@@ -280,9 +280,8 @@ def _load_jobs_config():
 def _configured_workspace_jobs():
     jobs = []
     for job in _load_jobs_config().get("jobs", []):
-        if not job.get("enabled", True):
-            continue
-        jobs.append((job["id"], job.get("repo", "")))
+        if job.get("workspace"):
+            jobs.append((job["id"], job.get("repo", "")))
     return jobs
 
 
