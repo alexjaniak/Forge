@@ -146,7 +146,7 @@ LOGS_DIR="$KERNEL_DIR/logs"
 mkdir -p "$LOGS_DIR"
 RUN_START_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 RUN_START_EPOCH="$(date +%s)"
-TMPLOG="$(mktemp /tmp/forge-run-XXXXXX.log)"
+TMPLOG="$(mktemp -t forge-run)"
 
 # Redirect all stdout/stderr to the temp file
 exec > "$TMPLOG" 2>&1
