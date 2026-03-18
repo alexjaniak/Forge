@@ -91,14 +91,17 @@ function playAdminAlert() {
     osc.type = "sine";
     gain.gain.setValueAtTime(0.15, ctx.currentTime);
 
+    // First tone
     osc.frequency.setValueAtTime(880, ctx.currentTime);
+    // Second tone (slightly higher)
     osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.15);
+    // Fade out
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
 
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.3);
   } catch {
-    // Audio not available; ignore.
+    // Audio not available — silently ignore
   }
 }
 
@@ -136,12 +139,12 @@ function IssueCard({ issue, repo }: { issue: Issue; repo: string }) {
         <span className="text-base text-text truncate">{issue.title}</span>
       </div>
       <div className="flex flex-wrap gap-1 mt-1 items-center">
-        {issue.labels.map((label) => (
+        {issue.labels.map((l) => (
           <span
-            key={label.name}
-            className={`text-xs px-1.5 py-0.5 rounded ${labelColor(label.name)}`}
+            key={l.name}
+            className={`text-xs px-1.5 py-0.5 rounded ${labelColor(l.name)}`}
           >
-            {label.name}
+            {l.name}
           </span>
         ))}
         {issue.assignees.length > 0 && (
@@ -154,7 +157,7 @@ function IssueCard({ issue, repo }: { issue: Issue; repo: string }) {
   );
 }
 
-export function IssuesPanel({ refreshKey }: { refreshKey?: number }) {
+export function IssuesPanel() {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [labels, setLabels] = useState<CanonicalIssueLabels>({
     status: [],
@@ -167,11 +170,7 @@ export function IssuesPanel({ refreshKey }: { refreshKey?: number }) {
   const [roleFilter, setRoleFilter] = useState<Set<string>>(new Set());
   const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set());
   const [muted, setMuted] = useState(() => {
-    try {
-      return localStorage.getItem("forge-admin-alert-muted") === "true";
-    } catch {
-      return false;
-    }
+    try { return localStorage.getItem("forge-admin-alert-muted") === "true"; } catch { return false; }
   });
   const prevIssuesRef = useRef<Issue[]>([]);
   const initialLoadRef = useRef(true);
@@ -234,8 +233,8 @@ export function IssuesPanel({ refreshKey }: { refreshKey?: number }) {
       const res = await fetch("/api/issues");
       const data = await res.json();
       applySnapshot(data);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Fetch failed");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Fetch failed");
     }
   }, [applySnapshot]);
 
@@ -256,8 +255,8 @@ export function IssuesPanel({ refreshKey }: { refreshKey?: number }) {
       void fetchIssues();
     }, 0);
 
-    const eventSource = new EventSource("/api/issues/stream");
-    eventSourceRef.current = eventSource;
+    const es = new EventSource("/api/issues/stream");
+    eventSourceRef.current = es;
 
     const handleSnapshot = (event: MessageEvent<string>) => {
       try {
@@ -267,85 +266,36 @@ export function IssuesPanel({ refreshKey }: { refreshKey?: number }) {
       }
     };
 
-    eventSource.onmessage = handleSnapshot;
-    eventSource.addEventListener("snapshot", handleSnapshot as EventListener);
+    es.onmessage = handleSnapshot;
+    es.addEventListener("snapshot", handleSnapshot as EventListener);
 
-    eventSource.onerror = () => {
+    es.onerror = () => {
       startFallbackPolling();
     };
 
-    eventSource.onopen = () => {
+    es.onopen = () => {
       stopFallbackPolling();
     };
 
     return () => {
       window.clearTimeout(initialFetchId);
-      eventSource.removeEventListener("snapshot", handleSnapshot as EventListener);
-      eventSource.close();
+      es.removeEventListener("snapshot", handleSnapshot as EventListener);
+      es.close();
       eventSourceRef.current = null;
       stopFallbackPolling();
     };
   }, [applySnapshot, fetchIssues, startFallbackPolling, stopFallbackPolling]);
 
   useEffect(() => {
-    if (refreshKey && refreshKey > 0) {
-      const refreshFetchId = window.setTimeout(() => {
-        void fetchIssues();
-      }, 0);
-      return () => window.clearTimeout(refreshFetchId);
-    }
-  }, [refreshKey, fetchIssues]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("forge-admin-alert-muted", String(muted));
-    } catch {}
+    try { localStorage.setItem("forge-admin-alert-muted", String(muted)); } catch {}
   }, [muted]);
 
-  const statusLabels =
-    labels.status.length > 0
-      ? labels.status
-      : [
-          ...new Set(
-            issues.flatMap((issue) =>
-              issue.labels
-                .filter((label) => label.name.startsWith("status:"))
-                .map((label) => label.name)
-            )
-          ),
-        ].sort();
-
-  const roleLabels =
-    labels.role.length > 0
-      ? labels.role
-      : [
-          ...new Set(
-            issues.flatMap((issue) =>
-              issue.labels
-                .filter((label) => label.name.startsWith("role:"))
-                .map((label) => label.name)
-            )
-          ),
-        ].sort();
-
-  const typeLabels =
-    labels.type.length > 0
-      ? labels.type
-      : [
-          ...new Set(
-            issues.flatMap((issue) =>
-              issue.labels
-                .filter((label) => label.name.startsWith("type:"))
-                .map((label) => label.name)
-            )
-          ),
-        ].sort();
   const toggleFilter = (
-    filterSet: Set<string>,
+    set: Set<string>,
     setter: React.Dispatch<React.SetStateAction<Set<string>>>,
     value: string
   ) => {
-    const next = new Set(filterSet);
+    const next = new Set(set);
     if (next.has(value)) next.delete(value);
     else next.add(value);
     setter(next);
@@ -353,31 +303,32 @@ export function IssuesPanel({ refreshKey }: { refreshKey?: number }) {
 
   const filtered = issues.filter((issue) => {
     if (statusFilter.size > 0) {
-      const hasStatus = issue.labels.some(
-        (label) => label.name.startsWith("status:") && statusFilter.has(label.name)
+      const has = issue.labels.some(
+        (l) => l.name.startsWith("status:") && statusFilter.has(l.name)
       );
-      if (!hasStatus) return false;
+      if (!has) return false;
     }
     if (roleFilter.size > 0) {
-      const hasRole = issue.labels.some(
-        (label) => label.name.startsWith("role:") && roleFilter.has(label.name)
+      const has = issue.labels.some(
+        (l) => l.name.startsWith("role:") && roleFilter.has(l.name)
       );
-      if (!hasRole) return false;
+      if (!has) return false;
     }
     if (typeFilter.size > 0) {
-      const hasType = issue.labels.some(
-        (label) => label.name.startsWith("type:") && typeFilter.has(label.name)
+      const has = issue.labels.some(
+        (l) => l.name.startsWith("type:") && typeFilter.has(l.name)
       );
-      if (!hasType) return false;
+      if (!has) return false;
     }
     return true;
   });
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
+      {/* Filter bar */}
       <div className="flex items-center gap-2 border-b border-border px-3 py-2 shrink-0 flex-wrap">
         <button
-          onClick={() => setMuted((value) => !value)}
+          onClick={() => setMuted((m) => !m)}
           title={muted ? "Unmute admin alerts" : "Mute admin alerts"}
           className={`px-1.5 py-0.5 rounded transition-colors ${
             muted
@@ -387,41 +338,43 @@ export function IssuesPanel({ refreshKey }: { refreshKey?: number }) {
         >
           <BellIcon muted={muted} />
         </button>
-        {statusLabels.map((label) => (
+        {labels.status.map((s) => (
           <button
-            key={label}
-            onClick={() => toggleFilter(statusFilter, setStatusFilter, label)}
-            className={`text-xs px-2 py-0.5 rounded-full cursor-pointer ${filterChipClass(label, statusFilter.has(label))}`}
+            key={s}
+            onClick={() => toggleFilter(statusFilter, setStatusFilter, s)}
+            className={`text-xs px-2 py-0.5 rounded-full cursor-pointer ${filterChipClass(s, statusFilter.has(s))}`}
           >
-            {label}
+            {s}
           </button>
         ))}
-        {roleLabels.map((label) => (
+        {labels.role.map((r) => (
           <button
-            key={label}
-            onClick={() => toggleFilter(roleFilter, setRoleFilter, label)}
-            className={`text-xs px-2 py-0.5 rounded-full cursor-pointer ${filterChipClass(label, roleFilter.has(label))}`}
+            key={r}
+            onClick={() => toggleFilter(roleFilter, setRoleFilter, r)}
+            className={`text-xs px-2 py-0.5 rounded-full cursor-pointer ${filterChipClass(r, roleFilter.has(r))}`}
           >
-            {label}
+            {r}
           </button>
         ))}
-        {typeLabels.map((label) => (
+        {labels.type.map((t) => (
           <button
-            key={label}
-            onClick={() => toggleFilter(typeFilter, setTypeFilter, label)}
-            className={`text-xs px-2 py-0.5 rounded-full cursor-pointer ${filterChipClass(label, typeFilter.has(label))}`}
+            key={t}
+            onClick={() => toggleFilter(typeFilter, setTypeFilter, t)}
+            className={`text-xs px-2 py-0.5 rounded-full cursor-pointer ${filterChipClass(t, typeFilter.has(t))}`}
           >
-            {label}
+            {t}
           </button>
         ))}
       </div>
 
+      {/* Error */}
       {error && (
         <div className="text-accent-red text-xs px-3 py-1 shrink-0">
           {error}
         </div>
       )}
 
+      {/* Issue list */}
       <div className="dashboard-scrollbar [--dashboard-scrollbar-surface:var(--background)] flex-1 overflow-y-auto px-3 pb-3">
         {filtered.length === 0 && !error ? (
           <p className="text-muted-foreground text-sm pt-3">No issues found.</p>
