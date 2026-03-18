@@ -542,12 +542,30 @@ export function AgentPanel({ refreshKey }: { refreshKey?: number }) {
     }
   };
 
-  const stagedCount = agents.filter(
-    (a) => a.status === "staged" || a.status === "modified"
+  const handleReset = async () => {
+    try {
+      const res = await fetch("/api/agents/reset", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        const parts: string[] = [];
+        if (data.restored?.length) parts.push(`restored ${data.restored.length}`);
+        if (data.removed?.length) parts.push(`removed ${data.removed.length}`);
+        showFeedback(parts.length > 0 ? `Reset: ${parts.join(", ")}` : "Reset (no changes)");
+      } else {
+        showFeedback(`Reset failed: ${data.error ?? "unknown"}`);
+      }
+      fetchAgents();
+    } catch {
+      showFeedback("Reset failed");
+    }
+  };
+
+  const newCount = agents.filter(
+    (a) => a.status === "new" || a.status === "modified"
   ).length;
-  const orphanCount = agents.filter((a) => a.status === "orphan").length;
-  const hasPendingChanges = stagedCount > 0 || orphanCount > 0;
-  const hasStagedAgents = agents.filter((a) => a.status !== "orphan").length > 0;
+  const deletedCount = agents.filter((a) => a.status === "deleted").length;
+  const hasPendingChanges = newCount > 0 || deletedCount > 0;
+  const hasStagedAgents = agents.filter((a) => a.status !== "deleted").length > 0;
 
   return (
     <div className="dashboard-scrollbar h-full bg-surface px-3 pb-3 overflow-y-auto flex flex-col">
@@ -589,6 +607,18 @@ export function AgentPanel({ refreshKey }: { refreshKey?: number }) {
           }
         >
           {clearConfirming ? "Confirm?" : "Clear"}
+        </button>
+        <button
+          className={`text-xs rounded px-2 py-1 border transition-colors ${
+            hasPendingChanges
+              ? "border-accent-yellow text-accent-yellow hover:bg-accent-yellow/20"
+              : "border-border text-muted-foreground cursor-not-allowed opacity-50"
+          }`}
+          onClick={hasPendingChanges ? handleReset : undefined}
+          disabled={!hasPendingChanges}
+          title={hasPendingChanges ? "Reset config to match applied state" : "No pending changes to reset"}
+        >
+          Reset
         </button>
         {actionFeedback && (
           <span className="text-xs text-accent-cyan ml-auto">{actionFeedback}</span>
