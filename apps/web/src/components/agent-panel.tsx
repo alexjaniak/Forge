@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-type AgentStatus = "new" | "active" | "modified" | "deleted";
+type AgentStatus = "staged" | "active" | "modified" | "orphan";
 
 interface Agent {
   id: string;
@@ -16,8 +16,6 @@ interface Agent {
   overdue: boolean;
   prompt: string;
   contexts: string[];
-  agentic: boolean;
-  workspace: boolean;
   repo: string;
   branch: string | null;
   status: AgentStatus;
@@ -91,10 +89,10 @@ function RoleBadge({ role }: { role: string }) {
 }
 
 const statusBadgeConfig: Record<AgentStatus, { label: string; bg: string }> = {
-  new: { label: "NEW", bg: "bg-accent-yellow" },
+  staged: { label: "STAGED", bg: "bg-accent-yellow" },
   active: { label: "ACTIVE", bg: "bg-accent-green" },
   modified: { label: "MODIFIED", bg: "bg-accent-yellow" },
-  deleted: { label: "DELETED", bg: "bg-accent-red" },
+  orphan: { label: "ORPHAN", bg: "bg-accent-red" },
 };
 
 function StatusBadge({ status, agent }: { status: AgentStatus; agent: Agent }) {
@@ -163,7 +161,7 @@ function AgentCard({
   };
 
   const isStarted = feedback === "Started";
-  const isStaged = agent.status === "new";
+  const isStaged = agent.status === "staged";
 
   return (
     <div className="rounded-md bg-surface p-2 border border-border hover:bg-surface-hover transition-colors">
@@ -234,8 +232,8 @@ function AgentCard({
 const statusOrder: Record<AgentStatus, number> = {
   active: 0,
   modified: 1,
-  new: 2,
-  deleted: 3,
+  staged: 2,
+  orphan: 3,
 };
 
 function sortAgentsByStatus(agents: Agent[]): Agent[] {
@@ -248,8 +246,7 @@ interface Template {
   type: string;
   interval: string;
   contexts: string[];
-  agentic: boolean;
-  workspace: boolean;
+  repo: string;
 }
 
 function AddAgentModal({
@@ -270,6 +267,20 @@ function AddAgentModal({
   const [loading, setLoading] = useState(true);
   const backdropRef = useRef<HTMLDivElement>(null);
 
+  const getAutoId = useCallback(
+    (type: string) => {
+      const existing = agents
+        .filter((a) => a.role === type)
+        .map((a) => {
+          const match = a.id.match(new RegExp(`^${type}-(\\d+)$`));
+          return match ? parseInt(match[1], 10) : 0;
+        });
+      const next = existing.length > 0 ? Math.max(...existing) + 1 : 1;
+      return `${type}-${String(next).padStart(2, "0")}`;
+    },
+    [agents]
+  );
+
   useEffect(() => {
     fetch("/api/templates")
       .then((res) => res.json())
@@ -288,7 +299,7 @@ function AddAgentModal({
       })
       .catch(() => setError("Failed to load templates"))
       .finally(() => setLoading(false));
-  }, []);
+  }, [getAutoId]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -308,20 +319,6 @@ function AddAgentModal({
     setAgentId(getAutoId(tpl.type));
     setError(null);
   };
-
-  const getAutoId = useCallback(
-    (type: string) => {
-      const existing = agents
-        .filter((a) => a.role === type)
-        .map((a) => {
-          const match = a.id.match(new RegExp(`^${type}-(\\d+)$`));
-          return match ? parseInt(match[1], 10) : 0;
-        });
-      const next = existing.length > 0 ? Math.max(...existing) + 1 : 1;
-      return `${type}-${String(next).padStart(2, "0")}`;
-    },
-    [agents]
-  );
 
   const handleSubmit = async () => {
     if (!selected) return;
@@ -535,30 +532,12 @@ export function AgentPanel() {
     }
   };
 
-  const handleReset = async () => {
-    try {
-      const res = await fetch("/api/agents/reset", { method: "POST" });
-      const data = await res.json();
-      if (data.success) {
-        const parts: string[] = [];
-        if (data.restored?.length) parts.push(`restored ${data.restored.length}`);
-        if (data.removed?.length) parts.push(`removed ${data.removed.length}`);
-        showFeedback(parts.length > 0 ? `Reset: ${parts.join(", ")}` : "Reset (no changes)");
-      } else {
-        showFeedback(`Reset failed: ${data.error ?? "unknown"}`);
-      }
-      fetchAgents();
-    } catch {
-      showFeedback("Reset failed");
-    }
-  };
-
-  const newCount = agents.filter(
-    (a) => a.status === "new" || a.status === "modified"
+  const stagedCount = agents.filter(
+    (a) => a.status === "staged" || a.status === "modified"
   ).length;
-  const deletedCount = agents.filter((a) => a.status === "deleted").length;
-  const hasPendingChanges = newCount > 0 || deletedCount > 0;
-  const hasStagedAgents = agents.filter((a) => a.status !== "deleted").length > 0;
+  const orphanCount = agents.filter((a) => a.status === "orphan").length;
+  const hasPendingChanges = stagedCount > 0 || orphanCount > 0;
+  const hasStagedAgents = agents.filter((a) => a.status !== "orphan").length > 0;
 
   return (
     <div className="dashboard-scrollbar h-full bg-surface px-3 pb-3 overflow-y-auto flex flex-col">
@@ -600,18 +579,6 @@ export function AgentPanel() {
           }
         >
           {clearConfirming ? "Confirm?" : "Clear"}
-        </button>
-        <button
-          className={`text-xs rounded px-2 py-1 border transition-colors ${
-            hasPendingChanges
-              ? "border-accent-yellow text-accent-yellow hover:bg-accent-yellow/20"
-              : "border-border text-muted-foreground cursor-not-allowed opacity-50"
-          }`}
-          onClick={hasPendingChanges ? handleReset : undefined}
-          disabled={!hasPendingChanges}
-          title={hasPendingChanges ? "Reset config to match applied state" : "No pending changes to reset"}
-        >
-          Reset
         </button>
         {actionFeedback && (
           <span className="text-xs text-accent-cyan ml-auto">{actionFeedback}</span>

@@ -23,8 +23,6 @@ export async function GET() {
       type,
       interval: data.interval ?? "2m",
       contexts: data.contexts ?? [],
-      agentic: data.agentic ?? true,
-      workspace: data.workspace ?? true,
       repo: data.repo ?? "",
     };
   });

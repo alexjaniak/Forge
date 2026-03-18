@@ -20,13 +20,13 @@ Unified command-line interface for managing agents.
 | Command | Description |
 |---------|-------------|
 | `forge add <role>` | Add an agent from a template (worker, planner, super) |
-| `forge rm <id>` | Remove staged agents by ID |
+| `forge remove <id>` | Remove an agent |
 | `forge apply` | Sync staged agent config to live crontab |
-| `forge diff` | Show git-style staged vs applied config changes |
-| `forge reset [agent-id]` | Reset staged config to match applied state |
 | `forge run <id>` | Run an agent once immediately |
-| `forge clear` | Clear staged config (`cron-jobs.json`) |
-| `forge status` | Show staged changes and applied agents |
+| `forge clear` | Clear active crontab and state |
+| `forge clear --staged` | Clear only staged config |
+| `forge list` | Show all agents (staged, active, unstaged) |
+| `forge status` | Alias for `forge list` |
 | `forge logs` | View agent logs (`-f` to follow) |
 | `forge ui` | Start the web dashboard |
 | `forge locks list` | Show all held issue/PR locks across repos |
@@ -122,11 +122,4 @@ If you prefer manual setup:
 3. `cd apps/web && npm install` — Install dashboard dependencies
 4. `cp agent-kernel/.env.example agent-kernel/.env` — Configure credentials
 5. `cp apps/webhook-monitor/config.example.toml apps/webhook-monitor/config.toml` — Configure webhooks
-
-Typical workflow after setup:
-1. `forge add worker` — Stage a new agent from the template
-2. `forge status` — Review staged changes and applied agents
-3. `forge diff` — Inspect field-level staged vs applied differences
-4. `forge apply` — Activate the staged config
-5. `forge reset` — Discard staged changes and restore the applied config
 6. `uv run forge --help` — Verify the Forge CLI is available
