@@ -114,12 +114,11 @@ Server-Sent Events endpoint for live log streaming. Uses `fs.watch()` on log fil
 Returns up to 50 GitHub events from `apps/webhook-monitor/events.jsonl`, parsed from newline-delimited JSON.
 
 ### `GET /api/issues`
-
-Returns the current GitHub issue snapshot for fallback polling. Response is cached server-side for 5s and returns `{ issues, repo }`.
+Returns open GitHub issues via `gh issue list`. Response cached server-side for 5s. Returns `{ issues, labels, repo }`, where `labels` is the hardcoded canonical `status`, `role`, and `type` label set defined in app source so the Issues tab can render filter chips even when a label has zero open matches.
 
 ### `GET /api/issues/stream`
 
-Server-Sent Events endpoint for live issue snapshots. Sends an initial `{ issues, repo }` snapshot immediately on connect, then emits updated snapshots when the GitHub event feed changes in ways that affect the Issues tab. The frontend falls back to polling `GET /api/issues` if the stream disconnects.
+Server-Sent Events endpoint for live issue snapshots. Sends an initial `{ issues, labels, repo }` snapshot immediately on connect, then emits updated snapshots when the GitHub event feed changes in ways that affect the Issues tab. The frontend falls back to polling `GET /api/issues` if the stream disconnects.
 
 ## Environment Variables
 
