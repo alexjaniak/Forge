@@ -252,6 +252,15 @@ interface Template {
   workspace: boolean;
 }
 
+function getAutoId(type: string, agents: Agent[]): string {
+  const existing = agents.filter((a) => a.role === type).map((a) => {
+    const match = a.id.match(new RegExp(`^${type}-(\\d+)$`));
+    return match ? parseInt(match[1], 10) : 0;
+  });
+  const next = existing.length > 0 ? Math.max(...existing) + 1 : 1;
+  return `${type}-${String(next).padStart(2, "0")}`;
+}
+
 function AddAgentModal({
   onClose,
   onAdded,
@@ -269,6 +278,7 @@ function AddAgentModal({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const backdropRef = useRef<HTMLDivElement>(null);
+  const initialAgentsRef = useRef(agents);
 
   useEffect(() => {
     fetch("/api/templates")
@@ -283,7 +293,7 @@ function AddAgentModal({
           const initial = worker ?? tpls[0];
           setSelected(initial);
           setInterval(initial.interval);
-          setAgentId(getAutoId(initial.type));
+          setAgentId(getAutoId(initial.type, initialAgentsRef.current));
         }
       })
       .catch(() => setError("Failed to load templates"))
@@ -305,23 +315,9 @@ function AddAgentModal({
   const selectTemplate = (tpl: Template) => {
     setSelected(tpl);
     setInterval(tpl.interval);
-    setAgentId(getAutoId(tpl.type));
+    setAgentId(getAutoId(tpl.type, agents));
     setError(null);
   };
-
-  const getAutoId = useCallback(
-    (type: string) => {
-      const existing = agents
-        .filter((a) => a.role === type)
-        .map((a) => {
-          const match = a.id.match(new RegExp(`^${type}-(\\d+)$`));
-          return match ? parseInt(match[1], 10) : 0;
-        });
-      const next = existing.length > 0 ? Math.max(...existing) + 1 : 1;
-      return `${type}-${String(next).padStart(2, "0")}`;
-    },
-    [agents]
-  );
 
   const handleSubmit = async () => {
     if (!selected) return;
