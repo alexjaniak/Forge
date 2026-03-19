@@ -43,7 +43,7 @@ export function templatePath(type: string): string {
 }
 
 export function eventsPath(): string {
-  return path.join(getForgeRoot(), "apps/webhook-monitor/events.jsonl");
+  return path.join(getForgeRoot(), "apps/web/events.jsonl");
 }
 
 export function managePyPath(): string {
