@@ -266,10 +266,12 @@ function AddAgentModal({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const backdropRef = useRef<HTMLDivElement>(null);
+  const initialAgentsRef = useRef(agents);
 
   const getAutoId = useCallback(
     (type: string) => {
-      const existing = agents
+      // Keep Add Agent defaults stable for the lifetime of the modal.
+      const existing = initialAgentsRef.current
         .filter((a) => a.role === type)
         .map((a) => {
           const match = a.id.match(new RegExp(`^${type}-(\\d+)$`));
@@ -319,7 +321,6 @@ function AddAgentModal({
     setAgentId(getAutoId(tpl.type));
     setError(null);
   };
-
   const handleSubmit = async () => {
     if (!selected) return;
     setSubmitting(true);
