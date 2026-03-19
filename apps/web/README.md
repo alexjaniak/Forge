@@ -49,7 +49,7 @@ src/app/
 |-----------|------|---------|
 | **ResizableLayout** | `resizable-layout.tsx` | Three-panel layout: sidebar (agents), top-right (logs), bottom-right (events). Panels are resizable with drag handles and collapsible on double-click. Sizes persist to localStorage. |
 | **AgentPanel** | `agent-panel.tsx` | Lists agents with status badges (NEW, ACTIVE, MODIFIED, DELETED), role badges, interval/countdown info, and branch context. Supports add, delete, force-run, apply, clear, diff, and reset actions. Auto-refreshes every 5s. |
-| **LogsPanel** | `logs-panel.tsx` | Streams logs via SSE (`/api/logs/stream`) with polling fallback (5s). Tabs for each agent plus an "All" view. Parses log blocks delimited by `=== RUN ===` / `=== END RUN ===` markers. Max 200 blocks displayed. |
+| **LogsPanel** | `logs-panel.tsx` | Streams logs via SSE (`/api/logs/stream`) with polling fallback (5s). Tabs for each agent plus an "All" view. Parses buffered `=== RUN <timestamp> duration=<N>s exit=<code> ===` entries plus `=== SKIP <timestamp> reason=<...> ===` markers. Max 200 blocks displayed. |
 | **EventsPanel** | `events-panel.tsx` | Polls `/api/events` every 3s. Shows GitHub event cards with action badges (color-coded), issue numbers, actors, labels. Max 50 events displayed. |
 | **IssuesPanel** | `issues-panel.tsx` | Connects to `/api/issues/stream` for live issue snapshots with `/api/issues` polling fallback. Shows GitHub issues with label badges (color-coded by status/role/type). Filterable by status and role labels. Audio alert only when an issue newly gains `role:admin`. |
 
@@ -61,7 +61,7 @@ Filesystem                          API Routes              Components
 agent-kernel/cron/cron-jobs.json  → GET /api/agents       → AgentPanel
 agent-kernel/cron/cron-state.json → GET /api/agents       → AgentPanel
 agent-kernel/logs/{id}.log        → GET /api/logs/stream  → LogsPanel (SSE)
-apps/webhook-monitor/events.jsonl → GET /api/events       → EventsPanel
+apps/forge-cli/events.jsonl       → GET /api/events       → EventsPanel
 gh issue list (via CLI)             → GET /api/issues       → IssuesPanel fallback
 GitHub events JSONL                 → GET /api/issues/stream → IssuesPanel live snapshots
 templates/{type}.json             → POST /api/agents      → (agent creation)
@@ -117,11 +117,11 @@ Returns log content for a single agent starting from byte offset. On first read 
 
 ### `GET /api/logs/stream`
 
-Server-Sent Events endpoint for live log streaming. Uses `fs.watch()` on log files and the logs directory. Optional `?agentId=` param to filter to one agent. Sends incremental chunks (max 64KB per event). Handles log rotation by detecting file truncation.
+Server-Sent Events endpoint for live log streaming. Uses `fs.watch()` on log files and the logs directory. Optional `?agentId=` param to filter to one agent. Sends the full pending append in 64KB chunks per watch event. Handles log rotation by detecting file truncation.
 
 ### `GET /api/events?offset={n}`
 
-Returns up to 50 GitHub events from `apps/webhook-monitor/events.jsonl`, parsed from newline-delimited JSON.
+Returns up to 50 GitHub events from `apps/forge-cli/events.jsonl`, parsed from newline-delimited JSON.
 
 ### `GET /api/issues`
 Returns open GitHub issues via `gh issue list`. Response cached server-side for 5s. Returns `{ issues, labels, repo }`, where `labels` is the hardcoded canonical `status`, `role`, and `type` label set defined in app source so the Issues tab can render filter chips even when a label has zero open matches.

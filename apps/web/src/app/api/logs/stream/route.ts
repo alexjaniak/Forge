@@ -53,20 +53,28 @@ export async function GET(request: NextRequest) {
       return;
     }
 
-    const bytesToRead = Math.min(fileSize - currentOffset, MAX_CHUNK);
-    if (bytesToRead <= 0) {
+    const pendingBytes = fileSize - currentOffset;
+    if (pendingBytes <= 0) {
       offsets.set(agent, fileSize);
       return;
     }
 
     const fd = fs.openSync(logPath, "r");
-    const buffer = Buffer.alloc(bytesToRead);
-    fs.readSync(fd, buffer, 0, bytesToRead, currentOffset);
-    fs.closeSync(fd);
+    let nextOffset = currentOffset;
 
-    const newOffset = currentOffset + bytesToRead;
-    offsets.set(agent, newOffset);
-    sendEvent(controller, agent, buffer.toString("utf-8"), newOffset);
+    try {
+      while (nextOffset < fileSize) {
+        const bytesToRead = Math.min(fileSize - nextOffset, MAX_CHUNK);
+        const buffer = Buffer.alloc(bytesToRead);
+        fs.readSync(fd, buffer, 0, bytesToRead, nextOffset);
+
+        nextOffset += bytesToRead;
+        offsets.set(agent, nextOffset);
+        sendEvent(controller, agent, buffer.toString("utf-8"), nextOffset);
+      }
+    } finally {
+      fs.closeSync(fd);
+    }
   }
 
   function watchAgent(
