@@ -64,7 +64,7 @@ Filesystem                          API Routes              Components
 agent-kernel/cron/cron-jobs.json  → GET /api/agents       → AgentPanel
 agent-kernel/cron/cron-state.json → GET /api/agents       → AgentPanel
 agent-kernel/logs/{id}.log        → GET /api/logs/stream  → LogsPanel (SSE)
-apps/webhook-monitor/events.jsonl → GET /api/events       → EventsPanel
+apps/forge-cli/events.jsonl       → GET /api/events       → EventsPanel
 gh issue list (via CLI)             → GET /api/issues       → IssuesPanel fallback
 GitHub events JSONL                 → GET /api/issues/stream → IssuesPanel live snapshots
 templates/{type}.json             → POST /api/agents      → (agent creation)
