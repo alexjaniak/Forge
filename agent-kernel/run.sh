@@ -122,6 +122,8 @@ if [[ -n "$WORKSPACE_ID" ]]; then
     git -C "$WORK_REPO_DIR" worktree add "$WORKTREE_DIR" --detach main
   else
     git -C "$WORK_REPO_DIR" fetch origin main 2>/dev/null
+    git -C "$WORKTREE_DIR" reset --hard HEAD 2>/dev/null
+    git -C "$WORKTREE_DIR" clean -fd 2>/dev/null
     git -C "$WORKTREE_DIR" checkout --detach origin/main 2>/dev/null
   fi
 
