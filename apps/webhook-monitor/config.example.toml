@@ -1,0 +1,11 @@
+[webhook]
+secret = ""           # Required — set this or use FORGE_WEBHOOK_SECRET env var
+port = 8471
+events_file = "./events.jsonl"
+
+[trigger]
+rules_file = "./trigger-rules.json"
+
+[repo]
+name = ""             # owner/repo — used by tunnel.sh for gh webhook forward
+dir = ""              # absolute path to repo root — used for agent triggering

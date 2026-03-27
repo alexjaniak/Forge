@@ -16,8 +16,6 @@ interface CronJob {
   interval: string;
   prompt: string;
   contexts: string[];
-  agentic: boolean;
-  workspace: boolean;
   repo?: string;
 }
 
@@ -48,8 +46,7 @@ export async function POST(
   }
 
   const args: string[] = [];
-  if (agent.agentic) args.push("--agentic");
-  if (agent.workspace) args.push("--workspace", agent.id);
+  args.push("--workspace", agent.id);
   for (const ctx of agent.contexts) {
     args.push("--context", ctx);
   }

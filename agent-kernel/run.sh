@@ -21,7 +21,6 @@ fi
 CLAUDE="${CLAUDE_BIN:-claude}"
 
 # ── parse flags ────────────────────────────────────────────────
-AGENTIC=false
 PROMPT=""
 CONTEXTS=()
 WORKSPACE_ID=""
@@ -61,7 +60,6 @@ for arg in "$@"; do
     continue
   fi
   case "$arg" in
-    --agentic)    AGENTIC=true ;;
     --context)    NEXT_IS_CONTEXT=true ;;
     --workspace)  NEXT_IS_WORKSPACE=true ;;
     --log-id)     NEXT_IS_LOG_ID=true ;;
@@ -77,7 +75,7 @@ if [[ -z "$PROMPT" ]] && [[ ! -t 0 ]]; then
 fi
 
 if [[ -z "$PROMPT" ]]; then
-  echo "Usage: $0 [--agentic] [--workspace <id>] [--log-id <id>] [--repo <path-or-url>] [--model <model>] [--context <path> ...] \"<prompt>\"" >&2
+  echo "Usage: $0 [--workspace <id>] --repo <path-or-url> [--model <model>] [--context <path> ...] \"<prompt>\"" >&2
   exit 1
 fi
 
@@ -310,9 +308,6 @@ if [[ "$AGENT_RUNTIME" == "codex" ]]; then
     PROMPT="${SYSTEM_PROMPT}"$'\n\n'"${PROMPT}"
   fi
 else
-  if [[ "$AGENTIC" == false ]]; then
-    RUNTIME_ARGS+=(--print)          # text-only, no tools
-  fi
   RUNTIME_ARGS+=(--dangerously-skip-permissions)
   if [[ -n "$SYSTEM_PROMPT" ]]; then
     RUNTIME_ARGS+=(--append-system-prompt "$SYSTEM_PROMPT")

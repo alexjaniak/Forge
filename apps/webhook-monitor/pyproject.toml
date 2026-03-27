@@ -8,7 +8,6 @@ version = "0.1.0"
 description = "GitHub webhook receiver for Forge event monitoring"
 requires-python = ">=3.11"
 dependencies = [
-    "forge-cli>=0.1.0",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.34",
 ]

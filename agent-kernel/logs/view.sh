@@ -47,55 +47,34 @@ format_lines() {
   local body=""
   local in_block=false
   local current_start_ts=""
-  local current_duration=""
-  local current_exit=""
 
   while IFS= read -r line; do
-    # Run boundary marker — flush previous block and start buffering a new one
-    # Format: === RUN <ts> duration=<N>s exit=<code> ===
-    if [[ "$line" =~ ^===\ RUN\ ([0-9T:.Z-]+)\ duration=([0-9]+)s\ exit=([0-9]+)\ ===$ ]]; then
-      # Flush previous block if any
-      if [[ -n "$body" ]]; then
-        local meta=""
-        if [[ -n "$current_duration" ]]; then
-          local exit_color="32"
-          [[ "$current_exit" != "0" ]] && exit_color="31"
-          meta=" (${current_duration}s, exit \033[${exit_color}m${current_exit}\033[90m)"
-        fi
-        printf "\n%b \033[90m%s%b\033[0m \033[90m%s\033[0m\n%s\n" "$tag" "$current_start_ts" "$meta" "$separator" "$body"
-      fi
+    # Run boundary marker from run.sh — start buffering a new block
+    if [[ "$line" =~ ^===\ RUN\ ([0-9T:.Z-]+)\ ===$ ]]; then
       local run_ts="${BASH_REMATCH[1]}"
-      local run_duration="${BASH_REMATCH[2]}"
-      local run_exit="${BASH_REMATCH[3]}"
       local display_ts
       display_ts=$(date -jf '%Y-%m-%dT%H:%M:%SZ' "$run_ts" '+%H:%M:%S' 2>/dev/null || echo "$run_ts")
       current_start_ts="$display_ts"
-      current_duration="$run_duration"
-      current_exit="$run_exit"
       body=""
       in_block=true
       continue
     fi
 
-    # SKIP entry — flush previous block if any, then display skip line
-    if [[ "$line" =~ ^===\ SKIP\ ([0-9T:.Z-]+)\ reason=(.+)\ ===$ ]]; then
-      # Flush previous block if any
-      if [[ -n "$body" ]]; then
-        local meta=""
-        if [[ -n "$current_duration" ]]; then
-          local exit_color="32"
-          [[ "$current_exit" != "0" ]] && exit_color="31"
-          meta=" (${current_duration}s, exit \033[${exit_color}m${current_exit}\033[90m)"
-        fi
-        printf "\n%b \033[90m%s%b\033[0m \033[90m%s\033[0m\n%s\n" "$tag" "$current_start_ts" "$meta" "$separator" "$body"
-        body=""
-        in_block=false
+    # End-of-run marker — flush the buffered block atomically
+    if [[ "$line" =~ ^===\ END\ RUN(\ ([0-9T:.Z-]+))?\ ===$ ]]; then
+      local end_ts="${BASH_REMATCH[2]:-}"
+      local time_display="$current_start_ts"
+      if [[ -n "$end_ts" ]]; then
+        local display_end
+        display_end=$(date -jf '%Y-%m-%dT%H:%M:%SZ' "$end_ts" '+%H:%M:%S' 2>/dev/null || echo "$end_ts")
+        time_display="$current_start_ts → $display_end"
       fi
-      local skip_ts="${BASH_REMATCH[1]}"
-      local skip_reason="${BASH_REMATCH[2]}"
-      local display_skip_ts
-      display_skip_ts=$(date -jf '%Y-%m-%dT%H:%M:%SZ' "$skip_ts" '+%H:%M:%S' 2>/dev/null || echo "$skip_ts")
-      printf "\n%b \033[90m%s SKIP (%s) %s\033[0m\n" "$tag" "$display_skip_ts" "$skip_reason" "$separator"
+      if [[ -n "$body" ]]; then
+        printf "\n%b \033[90m%s\033[0m \033[90m%s\033[0m\n%s\n" "$tag" "$time_display" "$separator" "$body"
+      fi
+      body=""
+      current_start_ts=""
+      in_block=false
       continue
     fi
 
@@ -110,13 +89,7 @@ format_lines() {
 
   # Flush any remaining buffer (e.g. run still in progress during follow mode)
   if [[ -n "$body" ]]; then
-    local meta=""
-    if [[ -n "$current_duration" ]]; then
-      local exit_color="32"
-      [[ "$current_exit" != "0" ]] && exit_color="31"
-      meta=" (${current_duration}s, exit \033[${exit_color}m${current_exit}\033[90m)"
-    fi
-    printf "\n%b \033[90m%s%b\033[0m \033[90m%s\033[0m\n%s\n" "$tag" "$current_start_ts" "$meta" "$separator" "$body"
+    printf "\n%b \033[90m%s\033[0m \033[90m%s\033[0m\n%s\n" "$tag" "$current_start_ts" "$separator" "$body"
   fi
 }
 

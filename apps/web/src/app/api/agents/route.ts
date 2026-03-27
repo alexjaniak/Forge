@@ -17,8 +17,6 @@ interface CronJob {
   interval: string;
   prompt: string;
   contexts: string[];
-  agentic: boolean;
-  workspace: boolean;
   enabled?: boolean;
   repo?: string;
   runtime?: string;
@@ -35,8 +33,6 @@ interface CronState {
       installed_at?: string;
       contexts?: string[];
       prompt?: string;
-      agentic?: boolean;
-      workspace?: boolean;
       repo?: string;
       runtime?: string;
       model?: string;
@@ -138,8 +134,6 @@ function buildAgentFromJob(
     staggerOffset: jobState?.stagger_offset ?? 0,
     prompt: job.prompt,
     contexts: job.contexts,
-    agentic: job.agentic,
-    workspace: job.workspace,
     repo: job.repo ?? "",
     status,
     ...(stagedInterval ? { stagedInterval } : {}),
@@ -201,8 +195,6 @@ export async function GET() {
         interval: jobState.interval ?? "?",
         prompt: "",
         contexts: jobState.contexts ?? [],
-        agentic: false,
-        workspace: false,
       };
       agents.push(buildAgentFromJob(orphanJob, jobState, "deleted"));
     }
@@ -298,8 +290,6 @@ export async function POST(request: NextRequest) {
       interval: body.interval ?? template.interval ?? "2m",
       prompt: template.prompt ?? "",
       contexts: template.contexts ?? [],
-      agentic: template.agentic ?? true,
-      workspace: template.workspace ?? true,
       repo: template.repo ?? "",
     };
 

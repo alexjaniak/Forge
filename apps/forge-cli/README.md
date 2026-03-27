@@ -70,7 +70,7 @@ Show field-by-field differences between staged config and applied state.
 
 `uv run forge diff`
 
-Highlights changes to `interval`, `prompt`, `contexts`, `agentic`, `workspace`, `repo`, `runtime`, `model`, and `enabled`.
+Highlights changes to `interval`, `prompt`, `contexts`, `repo`, `runtime`, `model`, and `enabled`.
 
 ### `forge apply`
 

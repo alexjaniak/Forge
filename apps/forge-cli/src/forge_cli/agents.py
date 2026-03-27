@@ -100,8 +100,6 @@ def add(agent_types, agent_id, interval, list_templates, apply_flag):
         job["interval"] = interval if interval else template["interval"]
         job["prompt"] = template["prompt"]
         job["contexts"] = template.get("contexts", [])
-        job["agentic"] = template.get("agentic", False)
-        job["workspace"] = template.get("workspace", False)
         if "repo" in template:
             job["repo"] = template["repo"]
 
@@ -118,8 +116,6 @@ def add(agent_types, agent_id, interval, list_templates, apply_flag):
         click.echo(f"  prompt:    \"{prompt_display}\"")
         if job["contexts"]:
             click.echo(f"  contexts:  {', '.join(job['contexts'])}")
-        click.echo(f"  agentic:   {'yes' if job['agentic'] else 'no'}")
-        click.echo(f"  workspace: {'yes' if job['workspace'] else 'no'}")
 
     save_cron_jobs(cron_path, cron_data)
 
