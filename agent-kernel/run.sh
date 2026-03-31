@@ -116,20 +116,10 @@ fi
 # ── workspace (git worktree) isolation ───────────────────────
 if [[ -n "$WORKSPACE_ID" ]]; then
   WORKTREE_DIR="$WORK_REPO_DIR/.worktrees/$WORKSPACE_ID"
-
-  # Create worktree if missing, otherwise reset to latest main
-  if [[ ! -d "$WORKTREE_DIR" ]]; then
-    git -C "$WORK_REPO_DIR" worktree add "$WORKTREE_DIR" --detach main
-  else
-    git -C "$WORK_REPO_DIR" fetch origin main 2>/dev/null
-    git -C "$WORKTREE_DIR" reset --hard HEAD 2>/dev/null
-    git -C "$WORKTREE_DIR" clean -fd 2>/dev/null
-    git -C "$WORKTREE_DIR" checkout --detach origin/main 2>/dev/null
-  fi
-
-  # Skip if another run is still active in this workspace
   LOCKFILE="$WORKTREE_DIR/.agent.lock"
-  if [[ -f "$LOCKFILE" ]]; then
+
+  # Skip if another run still owns this workspace before mutating it.
+  if [[ -d "$WORKTREE_DIR" ]] && [[ -f "$LOCKFILE" ]]; then
     OLD_PID=$(cat "$LOCKFILE" 2>/dev/null)
     if kill -0 "$OLD_PID" 2>/dev/null; then
       LOGS_DIR="$KERNEL_DIR/logs"
@@ -139,8 +129,22 @@ if [[ -n "$WORKSPACE_ID" ]]; then
     fi
   fi
 
-  # Acquire lock
+  # Create the worktree on first use. Existing worktrees are only reset after
+  # this run claims ownership so another active run cannot lose its branch/files.
+  if [[ ! -d "$WORKTREE_DIR" ]]; then
+    git -C "$WORK_REPO_DIR" worktree add "$WORKTREE_DIR" --detach main
+    LOCKFILE="$WORKTREE_DIR/.agent.lock"
+  fi
+
+  # Acquire lock before sanitizing the reusable worktree.
   echo $$ > "$LOCKFILE"
+
+  if [[ -d "$WORKTREE_DIR" ]]; then
+    git -C "$WORK_REPO_DIR" fetch origin main 2>/dev/null
+    git -C "$WORKTREE_DIR" reset --hard HEAD 2>/dev/null
+    git -C "$WORKTREE_DIR" clean -fd 2>/dev/null
+    git -C "$WORKTREE_DIR" checkout --detach origin/main 2>/dev/null
+  fi
 fi
 
 # ── buffered atomic logging ──────────────────────────────────
