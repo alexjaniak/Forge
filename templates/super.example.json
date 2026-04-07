@@ -2,7 +2,8 @@
   "interval": "5m",
   "prompt": "Review epic PRs labeled status:needs-review and role:super. Check for cohesion, DRY code, and cross-cutting conflicts with other open PRs and issues. Approve to admin or send back to planner. Sweep for stale, stuck, or orphaned issues and PRs.",
   "contexts": ["contexts/IDENTITY.md", "contexts/SUPER.md", "contexts/ASSIGNED_ISSUE.md", "contexts/REVIEWER.md", "contexts/CONSTRAINTS.md", "contexts/LABELS.md", "contexts/WORKSPACE.md"],
+  "model": "gpt-5.4",
   "agentic": true,
   "workspace": true,
-  "repo": "github.com/alexjaniak/Forge"
+  "repo": "github.com/owner/repo"
 }

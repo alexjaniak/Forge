@@ -19,7 +19,7 @@ Unified command-line interface for managing agents.
 
 | Command | Description |
 |---------|-------------|
-| `forge add <role>` | Add an agent from a template (worker, planner, super) |
+| `forge add <role>` | Add an agent from tracked template defaults (worker, planner, super) |
 | `forge rm <id>` | Remove staged agents by ID |
 | `forge apply` | Sync staged agent config to live crontab |
 | `forge diff` | Show git-style staged vs applied config changes |
@@ -92,7 +92,7 @@ Each `info.json` contains `{"agent": "<id>", "pid": <pid>, "claimed_at": "<ISO t
 agent-kernel/    Core runtime — run.sh entry point, cron scheduling
 apps/            Applications (forge-cli, web dashboard)
 contexts/        Reusable context files that define agent behavior and protocols
-templates/       Agent configuration templates (worker.json, planner.json, super.json)
+templates/       Agent configuration templates (worker.json / worker.example.json, etc.)
 ```
 
 - **[agent-kernel](agent-kernel/README.md)** — one-shot Claude CLI wrapper with context assembly, worktree management, and cron-friendly execution
@@ -125,3 +125,10 @@ If you prefer manual setup:
 4. `cp agent-kernel/.env.example agent-kernel/.env` — Configure credentials
 5. `cp apps/forge-cli/config.example.toml apps/forge-cli/config.toml` — Configure webhooks
 6. `uv run forge --help` — Verify the Forge CLI is available
+
+Typical workflow after setup:
+1. `forge add worker` — Stage a new agent from the template
+2. `forge status` — Review staged changes and applied agents
+3. `forge diff` — Inspect field-level staged vs applied differences
+4. `forge apply` — Activate the staged config
+5. `forge reset` — Discard staged changes and restore the applied config

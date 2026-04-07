@@ -1,5 +1,6 @@
 import path from "path";
 import fs from "fs";
+import { collectTemplateTypes, resolveTemplatePath } from "./template-resolution";
 
 /**
  * Resolve the repo root from which all data files are located.
@@ -39,7 +40,16 @@ export function logsDir(): string {
 }
 
 export function templatePath(type: string): string {
-  return path.join(getForgeRoot(), `templates/${type}.json`);
+  return resolveTemplatePath(getForgeRoot(), type, fs.existsSync);
+}
+
+export function availableTemplateTypes(): string[] {
+  const templatesDir = path.join(getForgeRoot(), "templates");
+  try {
+    return collectTemplateTypes(fs.readdirSync(templatesDir));
+  } catch {
+    return [];
+  }
 }
 
 export function eventsPath(): string {

@@ -75,7 +75,6 @@ When all fix issues spawned from `@ADMIN` feedback are `status:done` and their P
 ## Epic intake
 
 - Look for issues labeled `status:ready-for-planning` and `role:planner` — these are your intake queue.
-- **Only work on issues from this queue.** Do NOT create new epics or parent issues on your own. Do NOT read READMEs, roadmaps, or other documentation to find new work. All new epics are created by the human admin.
 - When you pick up an epic, **immediately comment on the issue** announcing that you are picking it up (e.g. "Planner picking up this epic — beginning breakdown."). This prevents other planners from duplicating work on the same issue.
 - Move it to `status:planning`.
 - **Create a parent branch** for the epic off `main` (e.g. `epic/134-stats-perf`). All worker PRs for this epic must target this branch, not `main`. Open a parent PR from this branch to `main` — this is what the human admin will review.

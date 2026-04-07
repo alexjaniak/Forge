@@ -145,6 +145,21 @@ else
   : > apps/forge-cli/events.jsonl
   info "apps/forge-cli/events.jsonl created"
 fi
+template_repo="${FORGE_TEMPLATE_REPO:-$(detect_repo_name)}"
+for example in templates/*.example.json; do
+  [ -f "$example" ] || continue
+  local_copy="${example%.example.json}.json"
+  if [ -f "$local_copy" ]; then
+    info "${local_copy} exists, skipping"
+    continue
+  fi
+  cp "$example" "$local_copy"
+  if [ -n "$template_repo" ]; then
+    sed -i.bak "s|github.com/owner/repo|${template_repo}|g" "$local_copy"
+    rm -f "${local_copy}.bak"
+  fi
+  info "${local_copy} created from ${example##*/}"
+done
 echo
 
 # ── Verification ─────────────────────────────────────────────────────
@@ -195,5 +210,5 @@ ${GREEN}${BOLD}Setup complete!${RESET}
   Next steps:
     1. Edit agent-kernel/.env with your Claude OAuth token
     2. Edit apps/forge-cli/config.toml with your webhook secret
-    3. Run: uv run forge add worker && uv run forge cron apply
+    3. Run: uv run forge add worker && uv run forge apply
 EOF

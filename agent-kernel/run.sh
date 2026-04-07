@@ -25,12 +25,10 @@ AGENTIC=false
 PROMPT=""
 CONTEXTS=()
 WORKSPACE_ID=""
-LOG_ID=""
 TARGET_REPO=""
 MODEL=""
 NEXT_IS_CONTEXT=false
 NEXT_IS_WORKSPACE=false
-NEXT_IS_LOG_ID=false
 NEXT_IS_REPO=false
 NEXT_IS_MODEL=false
 
@@ -43,11 +41,6 @@ for arg in "$@"; do
   if [[ "$NEXT_IS_WORKSPACE" == true ]]; then
     WORKSPACE_ID="$arg"
     NEXT_IS_WORKSPACE=false
-    continue
-  fi
-  if [[ "$NEXT_IS_LOG_ID" == true ]]; then
-    LOG_ID="$arg"
-    NEXT_IS_LOG_ID=false
     continue
   fi
   if [[ "$NEXT_IS_REPO" == true ]]; then
@@ -64,7 +57,6 @@ for arg in "$@"; do
     --agentic)    AGENTIC=true ;;
     --context)    NEXT_IS_CONTEXT=true ;;
     --workspace)  NEXT_IS_WORKSPACE=true ;;
-    --log-id)     NEXT_IS_LOG_ID=true ;;
     --repo)       NEXT_IS_REPO=true ;;
     --model)      NEXT_IS_MODEL=true ;;
     *)            PROMPT="$arg" ;;
@@ -77,7 +69,7 @@ if [[ -z "$PROMPT" ]] && [[ ! -t 0 ]]; then
 fi
 
 if [[ -z "$PROMPT" ]]; then
-  echo "Usage: $0 [--agentic] [--workspace <id>] [--log-id <id>] [--repo <path-or-url>] [--model <model>] [--context <path> ...] \"<prompt>\"" >&2
+  echo "Usage: $0 [--agentic] [--workspace <id>] [--repo <path-or-url>] [--model <model>] [--context <path> ...] \"<prompt>\"" >&2
   exit 1
 fi
 
@@ -132,9 +124,9 @@ if [[ -n "$WORKSPACE_ID" ]]; then
   if [[ -f "$LOCKFILE" ]]; then
     OLD_PID=$(cat "$LOCKFILE" 2>/dev/null)
     if kill -0 "$OLD_PID" 2>/dev/null; then
-      LOGS_DIR="$KERNEL_DIR/logs"
-      mkdir -p "$LOGS_DIR"
-      echo "=== SKIP $(date -u +%Y-%m-%dT%H:%M:%SZ) reason=\"pid $OLD_PID still running\" ===" >> "$LOGS_DIR/$WORKSPACE_ID.log"
+      SYSTEM_LOG="$KERNEL_DIR/logs/system.log"
+      mkdir -p "$(dirname "$SYSTEM_LOG")"
+      echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $WORKSPACE_ID: skipped (pid $OLD_PID still running)" >> "$SYSTEM_LOG"
       exit 0
     fi
   fi
@@ -143,60 +135,11 @@ if [[ -n "$WORKSPACE_ID" ]]; then
   echo $$ > "$LOCKFILE"
 fi
 
-# ── buffered atomic logging ──────────────────────────────────
-LOGS_DIR="$KERNEL_DIR/logs"
-mkdir -p "$LOGS_DIR"
-RUN_START_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-RUN_START_EPOCH="$(date +%s)"
-TMPLOG="$(mktemp -t forge-run)"
-
-append_serialized_log_block() {
-  local logfile="$1"
-  local blockfile="$2"
-
-  python3 - "$logfile" "$blockfile" <<'PY'
-import fcntl
-import shutil
-import sys
-from pathlib import Path
-
-logfile = Path(sys.argv[1])
-blockfile = Path(sys.argv[2])
-lockfile = Path(f"{logfile}.lock")
-
-with lockfile.open("a") as lockfh:
-    fcntl.flock(lockfh.fileno(), fcntl.LOCK_EX)
-    with logfile.open("ab") as outfh, blockfile.open("rb") as infh:
-        shutil.copyfileobj(infh, outfh)
-PY
-}
-
-# Redirect all stdout/stderr to the temp file
-exec > "$TMPLOG" 2>&1
-
+# ── run boundary markers (used by logs/view.sh to group output) ──
+# Emit early so ALL output (including errors) is captured between delimiters.
+echo "=== RUN $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
 cleanup() {
-  local rc=$?
-  local end_epoch
-  end_epoch="$(date +%s)"
-  local duration=$(( end_epoch - RUN_START_EPOCH ))
-  local log_target="${WORKSPACE_ID:-${LOG_ID:-unknown}}"
-  local logfile="$LOGS_DIR/${log_target}.log"
-  local blocklog
-  blocklog="$(mktemp -t forge-run-block)"
-
-  {
-    echo "=== RUN ${RUN_START_TS} duration=${duration}s exit=${rc} ==="
-    cat "$TMPLOG"
-  } > "$blocklog"
-
-  if [[ -z "$WORKSPACE_ID" ]] && [[ -n "$LOG_ID" ]]; then
-    append_serialized_log_block "$logfile" "$blocklog"
-  else
-    cat "$blocklog" >> "$logfile"
-  fi
-
-  rm -f "$TMPLOG"
-  rm -f "$blocklog"
+  echo "=== END RUN $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
   rm -f "${LOCKFILE:-}"
   if [[ -n "${FORGE_LOCKED_ISSUE:-}" ]]; then
     lock_release issue "$FORGE_LOCKED_ISSUE"
@@ -242,7 +185,6 @@ case "$AGENT_ROLE" in
     preflight_lock_issue "super" "role:super" "soft"
     ;;
 esac
-
 
 # ── preflight: Codex binary (direct mode) ────────────────────
 if [[ "$AGENT_RUNTIME" == "codex" ]] && [[ "${USE_INNIES:-false}" != "true" ]]; then
